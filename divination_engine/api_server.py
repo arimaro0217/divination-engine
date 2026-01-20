@@ -127,9 +127,47 @@ def health_check():
             "/api/ziwei",
             "/api/jyotish",
             "/api/western",
-            "/api/calculate-all"
+            "/api/calculate-all",
+            "/api/download-logs"
         ]
     }
+
+@app.get("/api/download-logs")
+def download_logs():
+    """
+    リクエストログをダウンロード
+    
+    ブラウザで http://your-backend-url/api/download-logs にアクセスすると
+    logs/requests.log ファイルがダウンロードされます
+    """
+    from fastapi.responses import FileResponse
+    
+    try:
+        if not os.path.exists(LOG_FILE):
+            return {
+                "status": "no_logs",
+                "message": "ログファイルがまだ存在しません。占いを実行するとログが作成されます。"
+            }
+        
+        # ログファイルのサイズを確認
+        file_size = os.path.getsize(LOG_FILE)
+        
+        if file_size == 0:
+            return {
+                "status": "empty",
+                "message": "ログファイルは空です。"
+            }
+        
+        # ファイルとしてダウンロード
+        return FileResponse(
+            path=LOG_FILE,
+            media_type="application/json",
+            filename=f"requests_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ログダウンロードエラー: {str(e)}")
+
 
 @app.post("/api/bazi")
 def calculate_bazi(request: BaZiRequest):
