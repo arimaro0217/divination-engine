@@ -1,3 +1,20 @@
 精度　0.00001度（約0.036秒）
 節入り秒　単位の精密計算
 NASAの天文データを使用（１８００年～２３９９年）
+
+arimaro0217/divination-engine
+https://github.com/arimaro0217/divination-engine.git
+
+git config --global user.name "arimarom"
+git config --global user.email "ryoanz.ba@gmail.com"
+git remote add origin https://github.com/arimaro0217/divination-engine.git
+git push origin https://github.com/arimaro0217/divination-engine.git
+
+コードを修正・保存したあとはターミナルで
+変更ファイルをあつめる
+git add .
+変更に名前を付けて記録（重要）
+git commit -m "機能追加"
+※" " の中は「レイアウト修正」や「バグ修正」など、後で自分がわかるような日本語のメモに変えてOKです。
+GitHubへ送信する
+git push

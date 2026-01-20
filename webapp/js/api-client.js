@@ -7,7 +7,7 @@ const APIClient = {
     // APIベースURL（開発環境 / 本番環境で自動切り替え）
     BASE_URL: window.location.hostname === 'localhost'
         ? 'http://localhost:8000/api'
-        : 'https://your-backend.onrender.com/api',
+        : 'https://divination-engine.onrender.com',
 
     /**
      * 数秘術計算（高度版：Y判定、Chaldean、天体連携）
