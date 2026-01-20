@@ -8,12 +8,43 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from pydantic import BaseModel
 from typing import Optional
+import os
+import json
 
 from src.main import DivinationController
 from src.models.input_schema import DivinationType, UserProfile
 from src.modules.numerology.num_api import NumerologyAPI
 from src.modules.eastern.ziwei_api import ZiweiAPI
 from src.modules.indian.jyotish_engine import JyotishAPI
+
+# ===== ログ設定 =====
+LOG_DIR = os.path.join(os.path.dirname(__file__), "logs")
+LOG_FILE = os.path.join(LOG_DIR, "requests.log")
+
+def log_request(endpoint: str, data: dict):
+    """
+    APIリクエストをログファイルに記録
+    
+    Args:
+        endpoint: APIエンドポイント名
+        data: ログに記録するデータ（個人情報を含む）
+    """
+    try:
+        # ログディレクトリ作成
+        os.makedirs(LOG_DIR, exist_ok=True)
+        
+        # ログエントリ作成
+        log_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "endpoint": endpoint,
+            "data": data
+        }
+        
+        # ファイルに追記
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+    except Exception as e:
+        print(f"ログ記録エラー: {e}")
 
 app = FastAPI(title="Divination Engine API", version="2.0.0")
 
@@ -115,6 +146,13 @@ def calculate_bazi(request: BaZiRequest):
             "minute": 18
         }
     """
+    # ログ記録
+    log_request("bazi", {
+        "birth": f"{request.year}-{request.month:02d}-{request.day:02d} {request.hour:02d}:{request.minute:02d}",
+        "latitude": request.latitude,
+        "longitude": request.longitude
+    })
+    
     try:
         birth_dt = datetime(
             request.year,
@@ -181,6 +219,13 @@ def calculate_numerology(request: NumerologyRequest):
             "system": "pythagorean"
         }
     """
+    # ログ記録
+    log_request("numerology", {
+        "name": request.name,
+        "birth_date": request.birth_date,
+        "system": request.system
+    })
+    
     try:
         api = NumerologyAPI()
         
@@ -210,6 +255,14 @@ def calculate_ziwei(request: ZiweiRequest):
             "gender": "male"
         }
     """
+    # ログ記録
+    log_request("ziwei", {
+        "birth_datetime": request.birth_datetime,
+        "latitude": request.latitude,
+        "longitude": request.longitude,
+        "gender": request.gender
+    })
+    
     try:
         api = ZiweiAPI()
         birth_dt = datetime.fromisoformat(request.birth_datetime)
@@ -243,6 +296,13 @@ def calculate_jyotish(request: JyotishRequest):
             "longitude": 139.76
         }
     """
+    # ログ記録
+    log_request("jyotish", {
+        "birth_datetime": request.birth_datetime,
+        "latitude": request.latitude,
+        "longitude": request.longitude
+    })
+    
     try:
         api = JyotishAPI()
         birth_dt = datetime.fromisoformat(request.birth_datetime)
@@ -272,6 +332,13 @@ def calculate_western(request: WesternRequest):
             "longitude": 139.76
         }
     """
+    # ログ記録
+    log_request("western", {
+        "birth_datetime": request.birth_datetime,
+        "latitude": request.latitude,
+        "longitude": request.longitude
+    })
+    
     try:
         from src.modules.western.astro_core import AstroCore
         
@@ -331,6 +398,17 @@ def calculate_all_divinations(request: FullDivinationRequest):
             "gender": "male"
         }
     """
+    # ログ記録
+    log_request("calculate-all", {
+        "name_kanji": request.name_kanji,
+        "name_kana": request.name_kana,
+        "birth_datetime": request.birth_datetime,
+        "birth_place": request.birth_place,
+        "latitude": request.latitude,
+        "longitude": request.longitude,
+        "gender": request.gender
+    })
+    
     try:
         profile = UserProfile(
             name_kanji=request.name_kanji,
