@@ -1,16 +1,8 @@
 {
-    "version": 2,
-    "name": "divination-frontend",
-    "builds": [
+    "rewrites": [
         {
-            "src": "**/*",
-            "use": "@vercel/static"
-        }
-    ],
-    "routes": [
-        {
-            "src": "/(.*)",
-            "dest": "/$1"
+            "source": "/(.*)",
+            "destination": "/$1"
         }
     ],
     "headers": [

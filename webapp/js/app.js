@@ -93,8 +93,15 @@ document.addEventListener('DOMContentLoaded', () => {
         ).map(cb => cb.value);
 
         // ローディング表示
+        // ローディング表示
         resultsSection.classList.remove('hidden');
-        resultsContainer.innerHTML = '<div class="loading">計算中...</div>';
+        resultsContainer.innerHTML = `
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">サーバーを起動しています...</div>
+                <div class="loading-subtext">※バックエンドの起動に最大1分ほどかかる場合があります</div>
+            </div>
+        `;
         userSummary.innerHTML = '';
 
         // 結果を計算
