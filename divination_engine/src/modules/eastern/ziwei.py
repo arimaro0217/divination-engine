@@ -1,6 +1,8 @@
 """
 紫微斗数モジュール
 命盤の作成（12宮、14主星配置）
+
+v2.0: pyswissephベースの天文学的旧暦計算に切り替え
 """
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
@@ -10,14 +12,22 @@ from ...core.time_manager import TimeManager
 from ...models.output_schema import ZiWeiResult
 from ...const import ziwei_const as zw
 
-
-# 旧暦変換用（lunardate使用）
+# 天文学ベースの旧暦計算エンジン
 try:
-    from lunardate import LunarDate
-    HAS_LUNARDATE = True
+    from ...core.lunar_core import LunisolarEngine, LunarDate as AstroLunarDate
+    HAS_LUNISOLAR_ENGINE = True
 except ImportError:
-    HAS_LUNARDATE = False
-    print("警告: lunardateがインストールされていません。旧暦変換が簡易計算になります。")
+    HAS_LUNISOLAR_ENGINE = False
+    print("警告: LunisolarEngineが見つかりません。")
+
+# フォールバック: lunardate
+HAS_LUNARDATE = False
+if not HAS_LUNISOLAR_ENGINE:
+    try:
+        from lunardate import LunarDate
+        HAS_LUNARDATE = True
+    except ImportError:
+        print("警告: lunardateもインストールされていません。旧暦変換が簡易計算になります。")
 
 
 class ZiWeiEngine:
@@ -25,8 +35,10 @@ class ZiWeiEngine:
     紫微斗数計算エンジン
     旧暦に基づいて命盤を作成
     
+    v2.0: pyswissephによる天文学的朔望計算を使用
+    
     主な機能：
-    - 太陽暦から旧暦への変換
+    - 太陽暦から旧暦への変換（天文学的精度）
     - 命宮・身宮の算出
     - 五行局の決定
     - 紫微星位置の計算
@@ -36,9 +48,11 @@ class ZiWeiEngine:
     
     def __init__(self):
         """初期化"""
-        if not HAS_LUNARDATE:
-            print("警告: 高精度な紫微斗数計算にはlunardateライブラリが必要です。")
-            print("インストール: pip install lunardate")
+        self.lunar_engine = None
+        if HAS_LUNISOLAR_ENGINE:
+            self.lunar_engine = LunisolarEngine(use_jst=True)
+        elif not HAS_LUNARDATE:
+            print("警告: 高精度な紫微斗数計算にはpyswissephまたはlunardateライブラリが必要です。")
     
     def calculate(self, birth_dt: datetime) -> ZiWeiResult:
         """
@@ -103,15 +117,21 @@ class ZiWeiEngine:
         """
         太陽暦から旧暦に変換
         
+        優先順位:
+        1. LunisolarEngine (pyswisseph天文学計算)
+        2. lunardate (テーブルベース)
+        3. 簡易計算 (非推奨)
+        
         Args:
             dt: 太陽暦の日時
             
         Returns:
-            旧暦情報の辞書（year, month, day, year_stem_index）
+            旧暦情報の辞書（year, month, day, year_stem_index, is_leap_month）
         """
-        if HAS_LUNARDATE:
+        # 優先: pyswissephベースの天文学的計算
+        if self.lunar_engine is not None:
             try:
-                lunar = LunarDate.fromSolarDate(dt.year, dt.month, dt.day)
+                lunar = self.lunar_engine.convert_to_lunar(dt)
                 
                 # 年干支のインデックスを計算
                 # 1984年が甲子年（インデックス0）
@@ -122,12 +142,31 @@ class ZiWeiEngine:
                     'year': lunar.year,
                     'month': lunar.month,
                     'day': lunar.day,
+                    'is_leap_month': lunar.is_leap_month,
+                    'year_stem_index': year_stem_index
+                }
+            except Exception as e:
+                print(f"LunisolarEngine変換エラー: {e}、フォールバック")
+        
+        # フォールバック: lunardate
+        if HAS_LUNARDATE:
+            try:
+                lunar = LunarDate.fromSolarDate(dt.year, dt.month, dt.day)
+                
+                year_offset = (lunar.year - 1984) % 60
+                year_stem_index = year_offset % 10
+                
+                return {
+                    'year': lunar.year,
+                    'month': lunar.month,
+                    'day': lunar.day,
+                    'is_leap_month': False,  # lunardateは閏月情報を持たない場合あり
                     'year_stem_index': year_stem_index
                 }
             except Exception as e:
                 print(f"lunardate変換エラー: {e}、簡易計算にフォールバック")
         
-        # lunardate未インストール時または変換エラー時は簡易計算
+        # 最終フォールバック: 簡易計算（非推奨）
         # 注意: これは近似値であり、正確な旧暦変換ではない
         year_offset = (dt.year - 1984) % 60
         year_stem_index = year_offset % 10
@@ -136,6 +175,7 @@ class ZiWeiEngine:
             'year': dt.year,
             'month': dt.month,
             'day': dt.day,
+            'is_leap_month': False,
             'year_stem_index': year_stem_index
         }
     
