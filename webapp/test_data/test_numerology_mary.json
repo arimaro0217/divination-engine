@@ -1,0 +1,162 @@
+{
+  "profile": {
+    "name_input": "Mary Johnson",
+    "name_roman": "MARY JOHNSON",
+    "birth_date": "1992-02-17T12:00:00",
+    "system": "Pythagorean",
+    "target_year": 2026
+  },
+  "core_numbers": {
+    "life_path": {
+      "number": 4,
+      "is_master": false,
+      "calculation": "1992→3 + 2→2 + 17→8 = 13 → 4",
+      "ruler_planet": "Uranus",
+      "planet_status": {
+        "sign": "Capricorn",
+        "sign_ja": "Capricorn",
+        "degree": 16.35,
+        "is_retrograde": false,
+        "dignity": null,
+        "strength_score": 1.0
+      },
+      "meaning": {
+        "keywords": [
+          "安定",
+          "実用性",
+          "勤勉",
+          "基盤"
+        ],
+        "traits": "実践的で組織的、信頼性が高く責任感があります。堅実に目標を達成する力があります。",
+        "challenges": "柔軟性に欠け、変化を恐れる傾向があります。完璧主義すぎることもあります。",
+        "career": "建築家、会計士、プロジェクトマネージャー、エンジニア",
+        "planet": "Uranus（天王星）/ Saturn（土星）",
+        "element": "土"
+      }
+    },
+    "destiny": {
+      "number": 8,
+      "is_master": false,
+      "meaning": [
+        "権力",
+        "物質的成功",
+        "カルマ",
+        "達成"
+      ]
+    },
+    "soul_urge": {
+      "number": 2,
+      "is_master": false,
+      "meaning": [
+        "協調",
+        "調和",
+        "パートナーシップ",
+        "感受性"
+      ]
+    },
+    "personality": {
+      "number": 33,
+      "is_master": true,
+      "meaning": [
+        "マスターティーチャー",
+        "癒し",
+        "奉仕",
+        "無条件の愛"
+      ]
+    },
+    "maturity": {
+      "number": 3,
+      "meaning": [
+        "創造性",
+        "表現",
+        "コミュニケーション",
+        "楽観性"
+      ]
+    },
+    "birthday": {
+      "number": 8,
+      "meaning": [
+        "権力",
+        "物質的成功",
+        "カルマ",
+        "達成"
+      ]
+    },
+    "karmic_lessons": [
+      {
+        "number": 19,
+        "lesson": "権力の濫用からの解放",
+        "description": "前世で他者を支配または利用したカルマ。今生では奉仕と無私が必要です。",
+        "challenge": "他者を尊重し、共感を持って接すること"
+      }
+    ]
+  },
+  "forecasting": {
+    "personal_year": {
+      "number": 2,
+      "theme": "協力と忍耐",
+      "description": "成長には時間がかかります。人間関係を育み、協力することが重要です。"
+    },
+    "current_pinnacle": {
+      "period": "Second Pinnacle",
+      "number": 2,
+      "start_age": 33,
+      "end_age": 41
+    },
+    "all_pinnacles": [
+      {
+        "period": "First Pinnacle",
+        "number": 1,
+        "start_age": 0,
+        "end_age": 32
+      },
+      {
+        "period": "Second Pinnacle",
+        "number": 2,
+        "start_age": 33,
+        "end_age": 41
+      },
+      {
+        "period": "Third Pinnacle",
+        "number": 3,
+        "start_age": 42,
+        "end_age": 50
+      },
+      {
+        "period": "Fourth Pinnacle",
+        "number": 5,
+        "start_age": 51,
+        "end_age": null
+      }
+    ],
+    "challenges": [
+      {
+        "period": "First Challenge",
+        "number": 6
+      },
+      {
+        "period": "Second Challenge",
+        "number": 5
+      },
+      {
+        "period": "Third Challenge",
+        "number": 1
+      },
+      {
+        "period": "Fourth Challenge",
+        "number": 1
+      }
+    ]
+  },
+  "grid_matrix": {
+    "1": 5,
+    "2": 2,
+    "3": 0,
+    "4": 1,
+    "5": 2,
+    "6": 2,
+    "7": 2,
+    "8": 1,
+    "9": 3
+  }
+}

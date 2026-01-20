@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="統合占い計算エンジン - 12種類の占術を一括計算">
+    <title>統合占い計算エンジン | Divination Core Engine</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- ヘッダー -->
+    <header class="site-header">
+        <div class="container">
+            <h1 class="site-title">
+                <span class="title-decoration">✦</span>
+                統合占い計算エンジン
+                <span class="title-decoration">✦</span>
+            </h1>
+            <p class="site-subtitle">Divination Core Engine</p>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="container">
+        <!-- 入力フォームセクション -->
+        <section class="input-section">
+            <h2 class="section-title">
+                <span class="title-line"></span>
+                生年月日時を入力
+                <span class="title-line"></span>
+            </h2>
+
+            <form id="divination-form" class="divination-form">
+                <!-- 氏名 -->
+                <div class="form-group">
+                    <label class="form-label" for="name-kanji">
+                        <span class="label-icon">壱</span>
+                        氏名（漢字）
+                    </label>
+                    <div class="name-inputs">
+                        <input type="text" id="family-name" name="family-name" placeholder="姓" class="form-input"
+                            required>
+                        <input type="text" id="given-name" name="given-name" placeholder="名" class="form-input"
+                            required>
+                    </div>
+                </div>
+
+                <!-- 生年月日 -->
+                <div class="form-group">
+                    <label class="form-label">
+                        <span class="label-icon">弐</span>
+                        生年月日
+                    </label>
+                    <div class="date-inputs">
+                        <div class="input-with-unit">
+                            <input type="number" id="birth-year" name="birth-year" min="1900" max="2100"
+                                placeholder="1992" class="form-input" required>
+                            <span class="input-unit">年</span>
+                        </div>
+                        <div class="input-with-unit">
+                            <input type="number" id="birth-month" name="birth-month" min="1" max="12" placeholder="2"
+                                class="form-input" required>
+                            <span class="input-unit">月</span>
+                        </div>
+                        <div class="input-with-unit">
+                            <input type="number" id="birth-day" name="birth-day" min="1" max="31" placeholder="17"
+                                class="form-input" required>
+                            <span class="input-unit">日</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 出生時刻 -->
+                <div class="form-group">
+                    <label class="form-label">
+                        <span class="label-icon">参</span>
+                        出生時刻
+                    </label>
+                    <div class="time-inputs">
+                        <div class="input-with-unit">
+                            <input type="number" id="birth-hour" name="birth-hour" min="0" max="23" placeholder="17"
+                                class="form-input" required>
+                            <span class="input-unit">時</span>
+                        </div>
+                        <div class="input-with-unit">
+                            <input type="number" id="birth-minute" name="birth-minute" min="0" max="59" placeholder="18"
+                                class="form-input" required>
+                            <span class="input-unit">分</span>
+                        </div>
+                    </div>
+                    <p class="form-hint">※不明な場合は12時00分を入力してください</p>
+                </div>
+
+                <!-- 出生地 -->
+                <div class="form-group">
+                    <label class="form-label">
+                        <span class="label-icon">肆</span>
+                        出生地
+                    </label>
+                    <select id="birth-place" name="birth-place" class="form-select">
+                        <option value="">都道府県を選択...</option>
+                        <option value="35.6762,139.6503">東京都</option>
+                        <option value="35.1815,136.9066">愛知県（名古屋）</option>
+                        <option value="34.6937,135.5023">大阪府</option>
+                        <option value="35.0116,135.7681">京都府</option>
+                        <option value="43.0621,141.3544">北海道（札幌）</option>
+                        <option value="38.2682,140.8694">宮城県（仙台）</option>
+                        <option value="33.5904,130.4017">福岡県</option>
+                        <option value="26.2124,127.6809">沖縄県（那覇）</option>
+                        <option value="custom">その他（緯度経度を入力）</option>
+                    </select>
+                    <div id="custom-coords" class="custom-coords hidden">
+                        <input type="number" id="latitude" name="latitude" step="0.0001" placeholder="緯度（例: 35.6762）"
+                            class="form-input">
+                        <input type="number" id="longitude" name="longitude" step="0.0001" placeholder="経度（例: 139.6503）"
+                            class="form-input">
+                    </div>
+                </div>
+
+                <!-- 性別 -->
+                <div class="form-group">
+                    <label class="form-label">
+                        <span class="label-icon">伍</span>
+                        性別
+                    </label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="gender" value="male" checked>
+                            <span class="radio-custom"></span>
+                            男性
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="gender" value="female">
+                            <span class="radio-custom"></span>
+                            女性
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 計算対象選択 -->
+                <div class="form-group">
+                    <label class="form-label">
+                        <span class="label-icon">陸</span>
+                        計算する占術
+                    </label>
+                    <div class="checkbox-grid">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="divination" value="bazi" checked>
+                            <span class="checkbox-custom"></span>
+                            四柱推命
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="divination" value="sanmei" checked>
+                            <span class="checkbox-custom"></span>
+                            算命学
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="divination" value="kyusei" checked>
+                            <span class="checkbox-custom"></span>
+                            九星気学
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="divination" value="ziwei" checked>
+                            <span class="checkbox-custom"></span>
+                            紫微斗数
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="divination" value="sukuyou" checked>
+                            <span class="checkbox-custom"></span>
+                            宿曜占星術
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="divination" value="western" checked>
+                            <span class="checkbox-custom"></span>
+                            西洋占星術
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="divination" value="vedic" checked>
+                            <span class="checkbox-custom"></span>
+                            インド占星術
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="divination" value="mayan" checked>
+                            <span class="checkbox-custom"></span>
+                            マヤ暦
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="divination" value="numerology" checked>
+                            <span class="checkbox-custom"></span>
+                            数秘術
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="divination" value="seimei" checked>
+                            <span class="checkbox-custom"></span>
+                            姓名判断
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 計算ボタン -->
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">
+                        <span class="btn-icon">☯</span>
+                        占いを計算する
+                    </button>
+                    <button type="button" id="btn-sample" class="btn-secondary">
+                        サンプルデータを入力
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- 結果表示セクション -->
+        <section id="results-section" class="results-section hidden">
+            <h2 class="section-title">
+                <span class="title-line"></span>
+                鑑定結果
+                <span class="title-line"></span>
+            </h2>
+
+            <!-- ユーザー情報サマリー -->
+            <div class="user-summary" id="user-summary">
+                <!-- 動的に生成 -->
+            </div>
+
+            <!-- 各占術結果 -->
+            <div id="results-container">
+                <!-- 動的に生成 -->
+            </div>
+
+            <!-- アクションボタン -->
+            <div class="result-actions">
+                <button type="button" id="btn-print" class="btn-secondary">
+                    <span class="btn-icon">🖨</span>
+                    印刷する
+                </button>
+                <button type="button" id="btn-download-md" class="btn-secondary">
+                    <span class="btn-icon">📄</span>
+                    MD形式でダウンロード
+                </button>
+                <button type="button" id="btn-new" class="btn-primary">
+                    <span class="btn-icon">↺</span>
+                    新しい鑑定
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- フッター -->
+    <footer class="site-footer">
+        <div class="container">
+            <p class="footer-text">統合占い計算エンジン v1.0</p>
+            <p class="footer-note">※本システムの計算結果は参考情報です。重要な判断は専門家にご相談ください。</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/astro-calc.js"></script>
+    <script src="js/solar-term-engine.js?v=20260109"></script>
+    <script src="js/chinese-calendar.js?v=20260109"></script>
+    <script src="js/kanji-strokes.js"></script>
+    <script src="js/divination-modules.js?v=20260112e"></script>
+    <script src="js/advanced-divination.js?v=20260112"></script>
+    <script src="js/divination-charts.js?v=20260112"></script>
+    <script src="js/markdown-download.js"></script>
+    <script src="js/api-client.js?v=20260113"></script>
+    <script src="js/app.js?v=20260113"></script>
+</body>
+
+</html>

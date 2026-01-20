@@ -1,0 +1,25 @@
+# Python dependencies for Divination Engine API
+
+# Web Framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+
+# CORS
+# (fastapi includes starlette which handles CORS)
+
+# Data validation
+pydantic>=2.5.3
+
+# Date/Time
+python-dateutil>=2.8.2
+
+# Astronomy calculations
+pyswisseph>=2.10.3.2
+
+# Production server
+gunicorn>=21.2.0
+
+# Optional: for testing
+# pytest==7.4.4
+# httpx==0.26.0
