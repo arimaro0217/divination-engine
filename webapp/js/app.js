@@ -646,6 +646,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         `).join('')}
                     </table>
                     ` : ''}
+                    
+                    ${data.aspects && data.aspects.length > 0 ? `
+                    <h4 class="subheading">アスペクト</h4>
+                    <table class="result-table">
+                        <tr><th>天体組み合わせ</th><th>角度</th><th>オーブ</th><th>状態</th></tr>
+                        ${data.aspects.map(a => `
+                            <tr>
+                                <td>${a.planet1} - ${a.planet2}</td>
+                                <td>${a.aspect_type}</td>
+                                <td>${a.orb.toFixed(2)}°</td>
+                                <td>${a.applying ? '接近(A)' : '分離(S)'}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                    ` : ''}
                 </div>
             </div>
         `;

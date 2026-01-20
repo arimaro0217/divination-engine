@@ -331,6 +331,18 @@ function generateWesternMarkdown(data) {
         md += `\n`;
     }
 
+    // アスペクト
+    if (data.aspects && Array.isArray(data.aspects) && data.aspects.length > 0) {
+        md += `### アスペクト\n\n`;
+        md += `| 組み合わせ | 角度 | オーブ | 状態 |\n`;
+        md += `|---|---|---|---|\n`;
+        for (const a of data.aspects) {
+            const state = a.applying ? '接近(A)' : '分離(S)';
+            md += `| ${a.planet1} - ${a.planet2} | ${a.aspect_type} | ${a.orb.toFixed(2)}° | ${state} |\n`;
+        }
+        md += `\n`;
+    }
+
     return md;
 }
 
