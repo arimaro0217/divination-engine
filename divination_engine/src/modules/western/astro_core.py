@@ -163,5 +163,190 @@ class AstroCore:
         lilith_id = PlanetId.MEAN_APOGEE if mean_mode else PlanetId.OSCU_APOGEE
         return self.calculate_body(julian_day, lilith_id)
 
+
+# ============================================
+# 月のボイドタイム計算
+# ============================================
+
+class VoidOfCourseCalculator:
+    """
+    月のボイドタイム（Void of Course）計算エンジン
+    
+    ボイドタイム = 月が現在のサインを離れるまでに、
+    他の惑星とメジャーアスペクトを形成しない期間
+    
+    ビジネス・契約・重要な決断を避けるべき時間帯として
+    プロの占星術師に重要視される機能
+    """
+    
+    # メジャーアスペクト角度（ボイド判定に使用）
+    MAJOR_ASPECTS = [0, 60, 90, 120, 180]  # conjunction, sextile, square, trine, opposition
+    
+    # メジャーアスペクトのオーブ（度）
+    MAJOR_ASPECT_ORB = 8.0
+    
+    # チェック対象惑星
+    PLANETS_FOR_VOC = [
+        PlanetId.SUN, PlanetId.MERCURY, PlanetId.VENUS, PlanetId.MARS,
+        PlanetId.JUPITER, PlanetId.SATURN, PlanetId.URANUS, 
+        PlanetId.NEPTUNE, PlanetId.PLUTO
+    ]
+    
+    def __init__(self, core: AstroCore = None):
+        self.core = core or AstroCore()
+    
+    def calculate_void_of_course(
+        self,
+        julian_day: float,
+        lat: float = 0.0,
+        lon: float = 0.0,
+        alt: float = 0.0
+    ) -> Dict[str, Any]:
+        """
+        指定時刻における月のボイドタイム状態を計算
+        
+        Args:
+            julian_day: ユリウス日
+            lat: 緯度
+            lon: 経度
+            alt: 標高
+            
+        Returns:
+            {
+                "is_void": ボイドタイム中かどうか,
+                "void_start": ボイド開始時刻（JD）,
+                "void_end": サイン変更時刻（JD）,
+                "current_sign": 現在の月のサイン,
+                "next_sign": 次のサイン,
+                "last_aspect": 最後に形成したアスペクト情報,
+                "description": 説明文
+            }
+        """
+        # 月の現在位置を取得
+        moon_data = self.core.calculate_body(julian_day, PlanetId.MOON, lat, lon, alt)
+        moon_lon = moon_data['longitude']
+        moon_speed = moon_data['speed_long']
+        
+        # 現在のサインと次のサイン境界
+        current_sign_idx = int(moon_lon // 30)
+        next_sign_boundary = (current_sign_idx + 1) * 30
+        
+        # サイン変更までの時間を計算
+        degrees_to_next_sign = next_sign_boundary - moon_lon
+        if degrees_to_next_sign <= 0:
+            degrees_to_next_sign += 360
+        
+        # 月の平均速度は約13度/日
+        days_to_next_sign = degrees_to_next_sign / abs(moon_speed) if moon_speed != 0 else 1.0
+        sign_change_jd = julian_day + days_to_next_sign
+        
+        # 他の惑星の位置を取得
+        planets_data = {}
+        for planet_id in self.PLANETS_FOR_VOC:
+            planets_data[planet_id] = self.core.calculate_body(julian_day, planet_id, lat, lon, alt)
+        
+        # 現在から次のサイン境界までにアスペクトを形成するか検索
+        last_aspect = None
+        next_aspect_before_sign_change = None
+        
+        # 時間ステップ（1時間 = 1/24日）で検索
+        step = 1.0 / 24.0
+        check_jd = julian_day
+        
+        while check_jd < sign_change_jd:
+            moon_check = self.core.calculate_body(check_jd, PlanetId.MOON, lat, lon, alt)
+            moon_check_lon = moon_check['longitude']
+            
+            # まだ現在のサインにいることを確認
+            if int(moon_check_lon // 30) != current_sign_idx:
+                break
+            
+            for planet_id in self.PLANETS_FOR_VOC:
+                planet_check = self.core.calculate_body(check_jd, planet_id, lat, lon, alt)
+                planet_lon = planet_check['longitude']
+                
+                # アスペクトチェック
+                aspect = self._check_major_aspect(moon_check_lon, planet_lon)
+                if aspect:
+                    if check_jd <= julian_day:
+                        # 過去または現在のアスペクト
+                        last_aspect = {
+                            "planet": planet_id.name,
+                            "aspect_type": aspect,
+                            "time_jd": check_jd
+                        }
+                    else:
+                        # 未来のアスペクト（サイン変更前）
+                        next_aspect_before_sign_change = {
+                            "planet": planet_id.name,
+                            "aspect_type": aspect,
+                            "time_jd": check_jd
+                        }
+                        break
+            
+            if next_aspect_before_sign_change:
+                break
+                
+            check_jd += step
+        
+        # ボイド判定
+        is_void = (next_aspect_before_sign_change is None)
+        
+        # サイン名
+        sign_names = [
+            "牡羊座", "牡牛座", "双子座", "蟹座",
+            "獅子座", "乙女座", "天秤座", "蠍座",
+            "射手座", "山羊座", "水瓶座", "魚座"
+        ]
+        current_sign = sign_names[current_sign_idx]
+        next_sign = sign_names[(current_sign_idx + 1) % 12]
+        
+        # 説明文
+        if is_void:
+            desc = f"月は{current_sign}でボイドタイム中です。次の{next_sign}に入るまで重要な決断は避けましょう。"
+        else:
+            desc = f"月は{current_sign}でアクティブです。"
+        
+        return {
+            "is_void": is_void,
+            "void_end_jd": sign_change_jd if is_void else None,
+            "current_sign": current_sign,
+            "current_sign_index": current_sign_idx,
+            "next_sign": next_sign,
+            "degrees_to_next_sign": round(degrees_to_next_sign, 2),
+            "hours_to_next_sign": round(days_to_next_sign * 24, 1),
+            "last_aspect": last_aspect,
+            "next_aspect": next_aspect_before_sign_change,
+            "description": desc,
+            "warning": "契約・重要決断は避けることを推奨" if is_void else None
+        }
+    
+    def _check_major_aspect(self, moon_lon: float, planet_lon: float) -> str:
+        """
+        2つの黄経間でメジャーアスペクトが形成されているかチェック
+        
+        Returns:
+            アスペクト名（形成されている場合）またはNone
+        """
+        diff = abs(moon_lon - planet_lon)
+        if diff > 180:
+            diff = 360 - diff
+        
+        aspect_names = {
+            0: "Conjunction",
+            60: "Sextile",
+            90: "Square",
+            120: "Trine",
+            180: "Opposition"
+        }
+        
+        for angle, name in aspect_names.items():
+            if abs(diff - angle) <= self.MAJOR_ASPECT_ORB:
+                return name
+        
+        return None
+
+
 # シングルトンインスタンス（必要に応じて）
 default_core = AstroCore()
+

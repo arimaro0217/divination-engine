@@ -168,6 +168,47 @@ class LunisolarEngine:
         
         return new_moons
     
+    def find_lunar_new_year(self, year: int) -> datetime:
+        """
+        指定西暦年の旧暦1月1日（春節）のグレゴリオ暦日付を取得
+        
+        旧暦1月1日 = 冬至後2番目の朔（新月）
+        
+        Args:
+            year: 西暦年
+            
+        Returns:
+            旧暦1月1日のdatetime
+        """
+        # 前年11月から朔を計算
+        new_moons = self.calc_new_moon_dates(year)
+        new_moon_jds = [(nm, self._get_jd(nm)) for nm in new_moons]
+        
+        # 前年の冬至を探す（黄経270度）
+        winter_solstice_jd = self._find_solar_term(270, year - 1, 12)
+        
+        # 冬至後の朔をリストアップ
+        post_winter_moons = [
+            nm for nm, jd in new_moon_jds 
+            if jd > winter_solstice_jd
+        ]
+        
+        # 冬至後2番目の朔が旧暦1月1日
+        # （冬至を含む月が旧暦11月、その次が12月、その次が1月）
+        if len(post_winter_moons) >= 2:
+            return post_winter_moons[1]  # 2番目の朔
+        elif len(post_winter_moons) >= 1:
+            return post_winter_moons[0]  # フォールバック
+        else:
+            # さらにフォールバック：1月下旬〜2月上旬の朔を探す
+            for nm, jd in new_moon_jds:
+                if nm.month == 1 and nm.day >= 21 or nm.month == 2 and nm.day <= 20:
+                    return nm
+            
+            # 最終フォールバック
+            return datetime(year, 2, 1)
+
+    
     # ========================================
     # 中気計算（閏月判定用）
     # ========================================

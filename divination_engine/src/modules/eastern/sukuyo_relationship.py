@@ -318,6 +318,152 @@ class DestinyMatrix:
 
 
 # ============================================
+# 凌犯期間（七曜陵逼）判定
+# ============================================
+
+class RyohanEngine:
+    """
+    凌犯期間（七曜陵逼・りょうはんきかん）判定エンジン
+    
+    旧暦1月1日の曜日によって、その年の運勢が逆転する特殊期間（吉→凶）
+    を判定する。宿曜占星術における最重要の警告機能。
+    
+    原理:
+    - 旧暦1月1日が何曜日かによって「陵逼」の期間が決まる
+    - 陵逼期間中は、通常の吉が凶に、凶が吉に逆転する
+    - 特に重要な決断は避けるべき
+    """
+    
+    def __init__(self):
+        try:
+            from ...core.lunar_core import LunisolarEngine, LeapMonthMode
+        except ImportError:
+            from src.core.lunar_core import LunisolarEngine, LeapMonthMode
+        
+        self.lunar_engine = LunisolarEngine(use_jst=True)
+    
+    # 七曜陵逼テーブル
+    # 旧暦1月1日の曜日 -> (陵逼開始月, 陵逼終了月)
+    # ※月は旧暦月
+    RYOHAN_TABLE = {
+        "日": (1, 7),    # 日曜始まり: 1月〜7月が陵逼期間
+        "月": (2, 8),    # 月曜始まり: 2月〜8月が陵逼期間
+        "火": (3, 9),    # 火曜始まり: 3月〜9月が陵逼期間
+        "水": (4, 10),   # 水曜始まり: 4月〜10月が陵逼期間
+        "木": (5, 11),   # 木曜始まり: 5月〜11月が陵逼期間
+        "金": (6, 12),   # 金曜始まり: 6月〜12月が陵逼期間
+        "土": (7, 1),    # 土曜始まり: 7月〜翌1月が陵逼期間（年跨ぎ）
+    }
+    
+    def get_lunar_new_year_weekday(self, year: int) -> str:
+        """
+        指定年の旧暦1月1日の曜日を取得
+        
+        Args:
+            year: 年（西暦）
+            
+        Returns:
+            曜日（日月火水木金土）
+        """
+        # 旧暦1月1日を計算
+        # 注意: yearは西暦年なので、その年の旧暦1月1日を探す
+        lunar_new_year = self.lunar_engine.find_lunar_new_year(year)
+        
+        weekdays = ["月", "火", "水", "木", "金", "土", "日"]
+        return weekdays[lunar_new_year.weekday()]
+    
+    def get_ryohan_period(self, year: int) -> Dict[str, Any]:
+        """
+        指定年の凌犯期間を取得
+        
+        Args:
+            year: 年（西暦）
+            
+        Returns:
+            凌犯期間の情報
+        """
+        try:
+            weekday = self.get_lunar_new_year_weekday(year)
+            period = self.RYOHAN_TABLE.get(weekday, (1, 7))
+            
+            is_year_crossing = period[0] > period[1]  # 年跨ぎ
+            
+            return {
+                "year": year,
+                "lunar_new_year_weekday": weekday,
+                "ryohan_start_month": period[0],
+                "ryohan_end_month": period[1],
+                "is_year_crossing": is_year_crossing,
+                "description": f"{weekday}曜始まりの年。旧暦{period[0]}月〜{period[1]}月が凌犯期間。",
+                "warning": "凌犯期間中は吉凶が逆転。重要な決断は避けること。"
+            }
+        except Exception as e:
+            return {
+                "year": year,
+                "error": str(e),
+                "description": "凌犯期間の計算に失敗しました。"
+            }
+    
+    def is_ryohan_period(self, target_date: datetime) -> Dict[str, Any]:
+        """
+        指定日が凌犯期間かどうかを判定
+        
+        Args:
+            target_date: 判定対象日
+            
+        Returns:
+            判定結果
+        """
+        try:
+            from ...core.lunar_core import LeapMonthMode
+        except ImportError:
+            from src.core.lunar_core import LeapMonthMode
+        
+        try:
+            # 西暦年から旧暦年を特定
+            lunar_date = self.lunar_engine.convert_to_lunar(
+                target_date, 
+                LeapMonthMode.B  # 前月扱い
+            )
+            
+            ryohan_info = self.get_ryohan_period(target_date.year)
+            
+            if "error" in ryohan_info:
+                return {
+                    "is_ryohan": False,
+                    "error": ryohan_info["error"]
+                }
+            
+            start_month = ryohan_info["ryohan_start_month"]
+            end_month = ryohan_info["ryohan_end_month"]
+            is_year_crossing = ryohan_info["is_year_crossing"]
+            
+            lunar_month = lunar_date.month
+            
+            # 凌犯期間かどうかを判定
+            if is_year_crossing:
+                # 年跨ぎの場合（例: 7月〜翌1月）
+                is_ryohan = lunar_month >= start_month or lunar_month <= end_month
+            else:
+                # 通常の場合
+                is_ryohan = start_month <= lunar_month <= end_month
+            
+            return {
+                "target_date": target_date.strftime("%Y-%m-%d"),
+                "lunar_date": f"旧暦{lunar_date.year}年{lunar_date.month}月{lunar_date.day}日",
+                "is_ryohan": is_ryohan,
+                "ryohan_info": ryohan_info,
+                "warning": "吉凶逆転期間中！通常の吉日が凶日に変わります。" if is_ryohan else None
+            }
+        except Exception as e:
+            return {
+                "is_ryohan": False,
+                "error": str(e)
+            }
+
+
+
+# ============================================
 # JSON出力用ユーティリティ
 # ============================================
 

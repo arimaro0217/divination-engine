@@ -137,25 +137,33 @@ function generateMarkdown(userData, results) {
 
 function generateBaZiMarkdown(data) {
     const p = data.pillars;
+    if (!p) return `## 四柱推命\n\nデータがありません\n\n`;
+
     let md = `## 四柱推命\n\n`;
 
     md += `### 四柱\n\n`;
     md += `| 柱 | 天干 | 地支 |\n`;
     md += `|---|---|---|\n`;
-    md += `| 年柱 | ${p.year.stem} | ${p.year.branch} |\n`;
-    md += `| 月柱 | ${p.month.stem} | ${p.month.branch} |\n`;
-    md += `| 日柱 | ${p.day.stem} | ${p.day.branch} |\n`;
-    md += `| 時柱 | ${p.hour.stem} | ${p.hour.branch} |\n\n`;
+    md += `| 年柱 | ${p.year?.stem || '?'} | ${p.year?.branch || '?'} |\n`;
+    md += `| 月柱 | ${p.month?.stem || '?'} | ${p.month?.branch || '?'} |\n`;
+    md += `| 日柱 | ${p.day?.stem || '?'} | ${p.day?.branch || '?'} |\n`;
+    md += `| 時柱 | ${p.hour?.stem || '?'} | ${p.hour?.branch || '?'} |\n\n`;
 
-    md += `- **日主（日干）**: ${data.dayMaster}`;
+    md += `- **日主（日干）**: ${data.dayMaster || '?'}`;
     if (data.dayMasterElement) md += `（${data.dayMasterElement}`;
     if (data.dayMasterYinYang) md += `・${data.dayMasterYinYang}`;
     if (data.dayMasterElement) md += `）`;
     md += `\n`;
-    md += `- **空亡**: ${data.voidBranches.join('・')}\n\n`;
+
+    // 空亡
+    if (data.voidBranches && Array.isArray(data.voidBranches)) {
+        md += `- **空亡**: ${data.voidBranches.join('・')}\n\n`;
+    } else if (data.voidBranches) {
+        md += `- **空亡**: ${data.voidBranches}\n\n`;
+    }
 
     if (data.monthInfo) {
-        md += `- **節入り**: ${data.monthInfo.jieName}（節入り後${data.monthInfo.daysFromJieqi}日目）\n\n`;
+        md += `- **節入り**: ${data.monthInfo.jieName || '?'}（節入り後${data.monthInfo.daysFromJieqi || '?'}日目）\n\n`;
     }
 
     // 蔵干
@@ -163,29 +171,35 @@ function generateBaZiMarkdown(data) {
         md += `### 蔵干\n\n`;
         md += `| 柱 | 蔵干 | 本気 |\n`;
         md += `|---|---|---|\n`;
-        md += `| 年支（${p.year.branch}） | ${data.hiddenStems.year.allStems.join('・')} | ${data.hiddenStems.year.mainStem} |\n`;
-        md += `| 月支（${p.month.branch}） | ${data.hiddenStems.month.allStems.join('・')} | ${data.hiddenStems.month.mainStem}（${data.hiddenStems.month.phase}） |\n`;
-        md += `| 日支（${p.day.branch}） | ${data.hiddenStems.day.allStems.join('・')} | ${data.hiddenStems.day.mainStem} |\n`;
-        md += `| 時支（${p.hour.branch}） | ${data.hiddenStems.hour.allStems.join('・')} | ${data.hiddenStems.hour.mainStem} |\n\n`;
+        const hs = data.hiddenStems;
+        if (hs.year) md += `| 年支（${p.year?.branch || '?'}） | ${hs.year.allStems?.join('・') || '?'} | ${hs.year.mainStem || '?'} |\n`;
+        if (hs.month) md += `| 月支（${p.month?.branch || '?'}） | ${hs.month.allStems?.join('・') || '?'} | ${hs.month.mainStem || '?'}（${hs.month.phase || ''}） |\n`;
+        if (hs.day) md += `| 日支（${p.day?.branch || '?'}） | ${hs.day.allStems?.join('・') || '?'} | ${hs.day.mainStem || '?'} |\n`;
+        if (hs.hour) md += `| 時支（${p.hour?.branch || '?'}） | ${hs.hour.allStems?.join('・') || '?'} | ${hs.hour.mainStem || '?'} |\n`;
+        md += `\n`;
     }
 
     // 通変星
-    md += `### 通変星\n\n`;
-    md += `| 位置 | 通変星 |\n`;
-    md += `|---|---|\n`;
-    for (const [k, v] of Object.entries(data.tenGods)) {
-        md += `| ${k} | ${v} |\n`;
+    if (data.tenGods && Object.keys(data.tenGods).length > 0) {
+        md += `### 通変星\n\n`;
+        md += `| 位置 | 通変星 |\n`;
+        md += `|---|---|\n`;
+        for (const [k, v] of Object.entries(data.tenGods)) {
+            md += `| ${k} | ${v} |\n`;
+        }
+        md += `\n`;
     }
-    md += `\n`;
 
     // 十二運
-    md += `### 十二運\n\n`;
-    md += `| 位置 | 十二運 |\n`;
-    md += `|---|---|\n`;
-    for (const [k, v] of Object.entries(data.twelveStages)) {
-        md += `| ${k} | ${v} |\n`;
+    if (data.twelveStages && Object.keys(data.twelveStages).length > 0) {
+        md += `### 十二運\n\n`;
+        md += `| 位置 | 十二運 |\n`;
+        md += `|---|---|\n`;
+        for (const [k, v] of Object.entries(data.twelveStages)) {
+            md += `| ${k} | ${v} |\n`;
+        }
+        md += `\n`;
     }
-    md += `\n`;
 
     return md;
 }
@@ -193,23 +207,27 @@ function generateBaZiMarkdown(data) {
 function generateSanmeiMarkdown(data) {
     let md = `## 算命学\n\n`;
 
-    md += `- **天中殺**: ${data.voidGroupName}\n\n`;
+    md += `- **天中殺**: ${data.voidGroupName || '不明'}\n\n`;
 
-    md += `### 十大主星\n\n`;
-    md += `| 位置 | 主星 |\n`;
-    md += `|---|---|\n`;
-    for (const [k, v] of Object.entries(data.mainStars)) {
-        md += `| ${k} | ${v} |\n`;
+    if (data.mainStars && Object.keys(data.mainStars).length > 0) {
+        md += `### 十大主星\n\n`;
+        md += `| 位置 | 主星 |\n`;
+        md += `|---|---|\n`;
+        for (const [k, v] of Object.entries(data.mainStars)) {
+            md += `| ${k} | ${v} |\n`;
+        }
+        md += `\n`;
     }
-    md += `\n`;
 
-    md += `### 十二大従星\n\n`;
-    md += `| 位置 | 従星 |\n`;
-    md += `|---|---|\n`;
-    for (const [k, v] of Object.entries(data.subStars)) {
-        md += `| ${k} | ${v} |\n`;
+    if (data.subStars && Object.keys(data.subStars).length > 0) {
+        md += `### 十二大従星\n\n`;
+        md += `| 位置 | 従星 |\n`;
+        md += `|---|---|\n`;
+        for (const [k, v] of Object.entries(data.subStars)) {
+            md += `| ${k} | ${v} |\n`;
+        }
+        md += `\n`;
     }
-    md += `\n`;
 
     return md;
 }
@@ -217,10 +235,13 @@ function generateSanmeiMarkdown(data) {
 function generateKyuseiMarkdown(data) {
     let md = `## 九星気学\n\n`;
 
-    md += `- **本命星**: ${data.yearStar}\n`;
-    md += `- **月命星**: ${data.monthStar}\n`;
-    md += `- **日命星**: ${data.dayStar}\n`;
-    md += `- **傾斜宮**: ${data.inclination}\n\n`;
+    md += `- **本命星**: ${data.yearStar || '不明'}\n`;
+    md += `- **月命星**: ${data.monthStar || '不明'}\n`;
+    md += `- **日命星**: ${data.dayStar || '不明'}\n`;
+    if (data.inclination) {
+        md += `- **傾斜宮**: ${data.inclination}\n`;
+    }
+    md += `\n`;
 
     return md;
 }
@@ -228,9 +249,40 @@ function generateKyuseiMarkdown(data) {
 function generateZiWeiMarkdown(data) {
     let md = `## 紫微斗数\n\n`;
 
-    md += `- **旧暦生年月日**: ${data.lunarDate}\n`;
-    md += `- **命宮**: ${data.mingPalace}宮\n`;
-    md += `- **身宮**: ${data.bodyPalace}宮\n\n`;
+    md += `- **旧暦生年月日**: ${data.lunarDate || '不明'}\n`;
+    // API版/JS版両方に対応
+    if (data.lifePalace) {
+        md += `- **命宮**: ${data.lifePalace}\n`;
+    } else if (data.mingPalace) {
+        md += `- **命宮**: ${data.mingPalace}宮\n`;
+    }
+    if (data.hourBranch) {
+        md += `- **時辰**: ${data.hourBranch}の刻\n`;
+    }
+    if (data.bureau) {
+        md += `- **五行局**: ${data.bureau}\n`;
+    }
+    if (data.bodyPalace) {
+        md += `- **身宮**: ${data.bodyPalace}宮\n`;
+    }
+    if (data.ziweiPosition) {
+        md += `- **紫微星**: ${data.ziweiPosition}宮\n`;
+    }
+    md += `\n`;
+
+    // 十二宮配置（詳細版）
+    if (data.palaces && Array.isArray(data.palaces) && data.palaces.length > 0) {
+        md += `### 十二宮配置\n\n`;
+        md += `| 宮名 | 地支 | 主星 |\n`;
+        md += `|---|---|---|\n`;
+        for (const p of data.palaces.slice(0, 12)) {
+            const name = p.name || '?';
+            const branch = p.branch || '?';
+            const stars = (p.stars && p.stars.length > 0) ? p.stars.join('・') : '-';
+            md += `| ${name} | ${branch} | ${stars} |\n`;
+        }
+        md += `\n`;
+    }
 
     return md;
 }
@@ -238,8 +290,35 @@ function generateZiWeiMarkdown(data) {
 function generateSukuyouMarkdown(data) {
     let md = `## 宿曜占星術\n\n`;
 
-    md += `- **本命宿**: ${data.natalMansion}（第${data.mansionNumber}宿）\n`;
-    md += `- **属性**: ${data.element}\n\n`;
+    // API版/JS版両方に対応
+    const mansion = data.mansion || data.natalMansion || '不明';
+    const mansionNum = data.mansionIndex !== undefined ? data.mansionIndex + 1 : (data.mansionNumber || '?');
+    md += `- **本命宿**: ${mansion}（第${mansionNum}宿）\n`;
+
+    if (data.weekday) {
+        md += `- **七曜**: ${data.weekday}\n`;
+    }
+    if (data.group) {
+        md += `- **性格グループ**: ${data.group}\n`;
+    }
+    if (data.element) {
+        md += `- **属性**: ${data.element}\n`;
+    }
+    if (data.lunarDate) {
+        md += `- **旧暦日**: ${data.lunarDate}\n`;
+    }
+    md += `\n`;
+
+    // 相性マンダラ（抜粋）
+    if (data.mandala && Array.isArray(data.mandala) && data.mandala.length > 0) {
+        md += `### 相性マンダラ（抜粋）\n\n`;
+        md += `| 宿 | 相性 |\n`;
+        md += `|---|---|\n`;
+        for (const m of data.mandala.slice(0, 8)) {
+            md += `| ${m.shuku} | ${m.relation} |\n`;
+        }
+        md += `\n`;
+    }
 
     return md;
 }
@@ -349,10 +428,43 @@ function generateWesternMarkdown(data) {
 function generateVedicMarkdown(data) {
     let md = `## インド占星術（ヴェーダ）\n\n`;
 
-    md += `- **アヤナムサ**: ${data.ayanamsa}°（ラヒリ）\n`;
-    md += `- **月のナクシャトラ**: ${data.moonNakshatra}\n`;
-    md += `- **ナクシャトラ支配星**: ${data.nakshatraLord}\n`;
-    md += `- **月星座**: ${data.moonSign}\n\n`;
+    // アヤナムサ（文字列形式でも対応）
+    const ayanamsaDisplay = data.ayanamsa || 'Lahiri';
+    md += `- **アヤナムサ**: ${ayanamsaDisplay}\n`;
+
+    // 太陽星座・ラグナ（JS版）
+    if (data.sunSign) {
+        md += `- **太陽星座（ラシ）**: ${data.sunSign}\n`;
+    }
+    if (data.lagna) {
+        md += `- **ラグナ**: ${data.lagna}\n`;
+    }
+
+    // 月のナクシャトラ
+    if (data.moonNakshatra) {
+        md += `- **月のナクシャトラ**: ${data.moonNakshatra}\n`;
+    }
+    if (data.nakshatraLord) {
+        md += `- **ナクシャトラ支配星**: ${data.nakshatraLord}\n`;
+    }
+    if (data.nakshatraPada !== undefined) {
+        md += `- **パダ**: ${data.nakshatraPada}\n`;
+    }
+    if (data.moonSign) {
+        md += `- **月星座**: ${data.moonSign}\n`;
+    }
+    md += `\n`;
+
+    // ダシャー（JS版）
+    if (data.dashas && Array.isArray(data.dashas) && data.dashas.length > 0) {
+        md += `### ヴィムショッタリ・ダシャー\n\n`;
+        md += `| 支配星 | 期間 |\n`;
+        md += `|---|---|\n`;
+        for (const d of data.dashas) {
+            md += `| ${d.lord} | ${d.start}〜${d.end}年（${d.years}年間） |\n`;
+        }
+        md += `\n`;
+    }
 
     return md;
 }
@@ -360,11 +472,17 @@ function generateVedicMarkdown(data) {
 function generateMayanMarkdown(data) {
     let md = `## マヤ暦\n\n`;
 
-    md += `- **KIN**: ${data.kin}\n`;
-    md += `- **太陽の紋章**: ${data.solarSeal}\n`;
-    md += `- **銀河の音**: ${data.galacticTone}（${data.galacticToneName}）\n`;
-    md += `- **ウェイブスペル**: ${data.wavespell}\n`;
-    md += `- **ガイドキン**: ${data.guide}\n\n`;
+    md += `- **KIN**: ${data.kin || '?'}\n`;
+    md += `- **太陽の紋章**: ${data.solarSeal || '不明'}\n`;
+    const toneDisplay = data.galacticToneName ? `${data.galacticTone}（${data.galacticToneName}）` : (data.galacticTone || '?');
+    md += `- **銀河の音**: ${toneDisplay}\n`;
+    if (data.wavespell) {
+        md += `- **ウェイブスペル**: ${data.wavespell}\n`;
+    }
+    if (data.guide) {
+        md += `- **ガイドキン**: ${data.guide}\n`;
+    }
+    md += `\n`;
 
     return md;
 }
@@ -372,10 +490,15 @@ function generateMayanMarkdown(data) {
 function generateNumerologyMarkdown(data) {
     let md = `## 数秘術\n\n`;
 
-    md += `- **ライフパス数**: ${data.lifePath}\n`;
-    md += `  - 意味: ${data.lifePathMeaning}\n`;
-    md += `- **バースデー数**: ${data.birthdayNumber}\n`;
-    md += `  - 意味: ${data.birthdayMeaning}\n\n`;
+    md += `- **ライフパス数**: ${data.lifePath || '?'}\n`;
+    if (data.lifePathMeaning) {
+        md += `  - 意味: ${data.lifePathMeaning}\n`;
+    }
+    md += `- **バースデー数**: ${data.birthdayNumber || '?'}\n`;
+    if (data.birthdayMeaning) {
+        md += `  - 意味: ${data.birthdayMeaning}\n`;
+    }
+    md += `\n`;
 
     return md;
 }
@@ -383,17 +506,19 @@ function generateNumerologyMarkdown(data) {
 function generateSeimeiMarkdown(data) {
     let md = `## 姓名判断\n\n`;
 
-    md += `- **姓**: ${data.familyName}（画数: ${data.strokes.family.join(', ')}）\n`;
-    md += `- **名**: ${data.givenName}（画数: ${data.strokes.given.join(', ')}）\n\n`;
+    const familyStrokes = data.strokes?.family ? data.strokes.family.join(', ') : '?';
+    const givenStrokes = data.strokes?.given ? data.strokes.given.join(', ') : '?';
+    md += `- **姓**: ${data.familyName || '?'}（画数: ${familyStrokes}）\n`;
+    md += `- **名**: ${data.givenName || '?'}（画数: ${givenStrokes}）\n\n`;
 
     md += `### 五格\n\n`;
     md += `| 格 | 画数 | 意味 |\n`;
     md += `|---|---|---|\n`;
-    md += `| 天格（祖運） | ${data.tenkaku} | 先祖代々の運勢 |\n`;
-    md += `| 人格（主運） | ${data.jinkaku} | 性格・才能の中心 |\n`;
-    md += `| 地格（初運） | ${data.chikaku} | 幼少期〜青年期 |\n`;
-    md += `| 外格（副運） | ${data.gaikaku} | 対人関係・社会運 |\n`;
-    md += `| 総格（総運） | ${data.soukaku} | 人生全体の運勢 |\n\n`;
+    md += `| 天格（祖運） | ${data.tenkaku ?? '?'} | 先祖代々の運勢 |\n`;
+    md += `| 人格（主運） | ${data.jinkaku ?? '?'} | 性格・才能の中心 |\n`;
+    md += `| 地格（初運） | ${data.chikaku ?? '?'} | 幼少期〜青年期 |\n`;
+    md += `| 外格（副運） | ${data.gaikaku ?? '?'} | 対人関係・社会運 |\n`;
+    md += `| 総格（総運） | ${data.soukaku ?? '?'} | 人生全体の運勢 |\n\n`;
 
     return md;
 }
