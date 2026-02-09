@@ -524,24 +524,140 @@ const DivinationModules = {
         PALACES: ['命宮', '兄弟宮', '夫妻宮', '子女宮', '財帛宮', '疾厄宮',
             '遷移宮', '奴僕宮', '官禄宮', '田宅宮', '福徳宮', '父母宮'],
 
-        MAIN_STARS: ['紫微', '天機', '太陽', '武曲', '天同', '廉貞', '天府',
-            '太陰', '貪狼', '巨門', '天相', '天梁', '七殺', '破軍'],
+        // 五行局判定テーブル (地支グループ x 天干グループ)
+        JU_TABLE: [
+            [4, 4, 3, 3, 2], // 子丑
+            [2, 3, 3, 5, 5], // 寅卯
+            [3, 5, 5, 4, 4], // 辰巳
+            [4, 4, 6, 6, 2], // 午未
+            [2, 6, 6, 3, 3], // 申酉
+            [3, 3, 2, 2, 5]  // 戌亥
+        ],
+
+        // 天府星系の紫微星からの相対位置
+        TIANFU_MAP: { 0: 4, 1: 3, 2: 2, 3: 1, 4: 0, 5: 11, 6: 10, 7: 9, 8: 8, 9: 7, 10: 6, 11: 5 },
 
         calculate(date) {
             const lunarDate = ChineseCalendar.toLunarDate(date);
             const hourBranch = Math.floor((date.getHours() + 1) / 2) % 12;
+            const yearStemIdx = ChineseCalendar.STEM_INDICES[ChineseCalendar.calcFourPillars(date).year.stem];
 
-            // 命宮位置
-            const mingPalace = (2 + lunarDate.month - 1 - hourBranch + 12) % 12;
-            // 身宮位置
-            const bodyPalace = (2 + lunarDate.month - 1 + hourBranch) % 12;
+            // 1. 命宮位置
+            const mingIdx = (2 + lunarDate.month - 1 - hourBranch + 12) % 12;
+            const bodyIdx = (2 + lunarDate.month - 1 + hourBranch) % 12;
+
+            // 2. 命宮の天干（五行局計算用）
+            const yinStemBase = [2, 4, 6, 8, 0, 2, 4, 6, 8, 0][yearStemIdx];
+            const mingStemIdx = (yinStemBase + (mingIdx - 2 + 12) % 12) % 10;
+            const mingStem = ChineseCalendar.STEMS[mingStemIdx];
+
+            // 3. 五行局
+            const branchGroup = Math.floor(mingIdx / 2);
+            const stemGroup = mingStemIdx % 5;
+            const bureau = this.JU_TABLE[branchGroup][stemGroup];
+            const bureauName = ['?', '?', '木二局', '火三局', '土五局', '金四局', '水二局'][bureau] || '火三局';
+
+            // 4. 紫微星の位置
+            let ziweiIdx = 0;
+            const quotient = Math.floor((lunarDate.day - 1) / bureau);
+            const remainder = (lunarDate.day - 1) % bureau;
+            if (quotient % 2 === 0) {
+                ziweiIdx = (2 + quotient + remainder) % 12;
+            } else {
+                ziweiIdx = (2 + quotient + (bureau - 1 - remainder)) % 12;
+            }
+
+            // 5. 天府星の位置
+            const tianfuIdx = this.TIANFU_MAP[ziweiIdx];
+
+            // 6. 星を収集
+            const starPositions = {
+                'major_stars': {},
+                'minor_stars': [],
+                'bad_stars': []
+            };
+
+            // 主星系（紫微・天府）
+            const ziOffsets = { '紫微': 0, '天機': -1, '太陽': -3, '武曲': -4, '天同': -5, '廉貞': -8 };
+            Object.entries(ziOffsets).forEach(([name, offset]) => {
+                const pos = (ziweiIdx + offset + 12) % 12;
+                if (!starPositions.major_stars[pos]) starPositions.major_stars[pos] = [];
+                starPositions.major_stars[pos].push(name);
+            });
+
+            const tianOffsets = { '天府': 0, '太陰': 1, '貪狼': 2, '巨門': 3, '天相': 4, '天梁': 5, '七殺': 6, '破軍': 10 };
+            Object.entries(tianOffsets).forEach(([name, offset]) => {
+                const pos = (tianfuIdx + offset) % 12;
+                if (!starPositions.major_stars[pos]) starPositions.major_stars[pos] = [];
+                starPositions.major_stars[pos].push(name);
+            });
+
+            // --- 追加：主要な副星・凶星 ---
+            // 1. 左輔・右弼（月系）
+            const zuofuPos = (4 + lunarDate.month - 1) % 12;
+            const youbiPos = (10 - lunarDate.month + 1 + 12) % 12;
+            starPositions.minor_stars.push({ name: '左輔', pos: zuofuPos });
+            starPositions.minor_stars.push({ name: '右弼', pos: youbiPos });
+
+            // 2. 文昌・文曲（時系）
+            const wenchangPos = (10 - hourBranch + 12) % 12;
+            const wenquPos = (4 + hourBranch) % 12;
+            starPositions.minor_stars.push({ name: '文昌', pos: wenchangPos });
+            starPositions.minor_stars.push({ name: '文曲', pos: wenquPos });
+
+            // 3. 天魁・天鉞（年干系 - 簡易版）
+            const kuiYueTable = { 0: [1, 7], 1: [0, 8], 2: [11, 9], 3: [11, 9], 4: [1, 7], 5: [1, 7], 6: [0, 8], 7: [1, 7] };
+            const ky = kuiYueTable[yearStemIdx % 8] || [1, 7];
+            starPositions.minor_stars.push({ name: '天魁', pos: ky[0] });
+            starPositions.minor_stars.push({ name: '天鉞', pos: ky[1] });
+
+            // 4. 禄存・擎羊・陀羅（年干系）
+            const lucunPosTable = [2, 3, 5, 6, 5, 6, 8, 9, 11, 0];
+            const lucunPos = lucunPosTable[yearStemIdx];
+            starPositions.minor_stars.push({ name: '禄存', pos: lucunPos });
+            starPositions.bad_stars.push({ name: '擎羊', pos: (lucunPos + 1) % 12 });
+            starPositions.bad_stars.push({ name: '陀羅', pos: (lucunPos - 1 + 12) % 12 });
+
+            // 十二宮のデータを生成
+            const palaces = [];
+            for (let i = 0; i < 12; i++) {
+                const palaceIdx = (mingIdx - i + 12) % 12;
+                const branch = ChineseCalendar.BRANCHES[palaceIdx];
+
+                let combinedStars = [];
+
+                // 主星
+                const majors = (starPositions.major_stars[palaceIdx] || []).map(name => ({
+                    name, brightness: '廟', type: 'major'
+                }));
+                combinedStars = combinedStars.concat(majors);
+
+                // 副星
+                const minors = starPositions.minor_stars.filter(s => s.pos === palaceIdx).map(s => ({
+                    name: s.name, brightness: '', type: 'minor'
+                }));
+                combinedStars = combinedStars.concat(minors);
+
+                // 凶星
+                const bads = starPositions.bad_stars.filter(s => s.pos === palaceIdx).map(s => ({
+                    name: s.name, brightness: '', type: 'bad'
+                }));
+                combinedStars = combinedStars.concat(bads);
+
+                palaces.push({
+                    name: this.PALACES[i],
+                    branch: branch,
+                    stars: combinedStars
+                });
+            }
 
             return {
                 type: '紫微斗数',
                 lunarDate: `${lunarDate.year}年${lunarDate.month}月${lunarDate.day}日`,
-                mingPalace: ChineseCalendar.BRANCHES[mingPalace],
-                bodyPalace: ChineseCalendar.BRANCHES[bodyPalace],
-                palaces: this.PALACES
+                bureau: bureauName,
+                mingPalace: ChineseCalendar.BRANCHES[mingIdx],
+                bodyPalace: ChineseCalendar.BRANCHES[bodyIdx],
+                palaces: palaces
             };
         }
     },

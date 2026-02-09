@@ -6,34 +6,39 @@
 /* ===== CSS Variables ===== */
 :root {
     /* カラーパレット */
-    --color-primary: #1e3a8a;      /* 勝色・紺 */
+    --color-primary: #1e3a8a;
+    /* 勝色・紺 */
     --color-primary-light: rgba(30, 58, 138, 0.1);
-    --color-accent-gold: #d97706;   /* 金茶 */
-    --color-accent-red: #dc2626;    /* 茜色 */
-    --color-background: #fefbf3;    /* 和紙調 */
-    --color-text: #374151;          /* 墨色 */
+    --color-accent-gold: #d97706;
+    /* 金茶 */
+    --color-accent-red: #dc2626;
+    /* 茜色 */
+    --color-background: #fefbf3;
+    /* 和紙調 */
+    --color-text: #374151;
+    /* 墨色 */
     --color-text-light: #6b7280;
     --color-white: #ffffff;
     --color-border: #e5e7eb;
     --color-alt-row: rgba(0, 0, 0, 0.03);
-    
+
     /* タイポグラフィ */
     --font-serif: 'Noto Serif JP', serif;
     --font-sans: 'Noto Sans JP', sans-serif;
     --font-size-base: 16px;
     --line-height: 1.6;
-    
+
     /* スペーシング */
     --spacing-section: 3em;
     --spacing-lg: 2em;
     --spacing-md: 1.5em;
     --spacing-sm: 1em;
     --spacing-xs: 0.5em;
-    
+
     /* レイアウト */
     --max-width: 1200px;
     --border-radius: 8px;
-    
+
     /* シャドウ */
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -41,7 +46,9 @@
 }
 
 /* ===== Reset & Base ===== */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -319,14 +326,14 @@ body {
     border-radius: 4px;
 }
 
-.radio-label input:checked + .radio-custom,
-.checkbox-label input:checked + .checkbox-custom {
+.radio-label input:checked+.radio-custom,
+.checkbox-label input:checked+.checkbox-custom {
     background-color: var(--color-primary);
     border-color: var(--color-primary);
 }
 
-.radio-label input:checked + .radio-custom::after,
-.checkbox-label input:checked + .checkbox-custom::after {
+.radio-label input:checked+.radio-custom::after,
+.checkbox-label input:checked+.checkbox-custom::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -334,14 +341,14 @@ body {
     transform: translate(-50%, -50%);
 }
 
-.radio-label input:checked + .radio-custom::after {
+.radio-label input:checked+.radio-custom::after {
     width: 0.5em;
     height: 0.5em;
     background-color: var(--color-white);
     border-radius: 50%;
 }
 
-.checkbox-label input:checked + .checkbox-custom::after {
+.checkbox-label input:checked+.checkbox-custom::after {
     width: 0.3em;
     height: 0.6em;
     border: solid var(--color-white);
@@ -683,36 +690,36 @@ body {
         size: A4;
         margin: 15mm;
     }
-    
+
     body {
         background-color: white;
         font-size: 12pt;
     }
-    
+
     .site-header {
         background: var(--color-primary) !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
-    
+
     .input-section,
     .form-actions,
     .result-actions,
     .site-footer {
         display: none !important;
     }
-    
+
     .results-section {
         margin: 0;
     }
-    
+
     .result-card {
         break-inside: avoid;
         page-break-inside: avoid;
         box-shadow: none;
         border: 1px solid var(--color-border);
     }
-    
+
     .result-table th {
         background-color: var(--color-primary) !important;
         -webkit-print-color-adjust: exact;
@@ -725,93 +732,153 @@ body {
     .site-title {
         font-size: 1.75rem;
     }
-    
+
     .section-title {
         font-size: 1.5rem;
         flex-direction: column;
         gap: 0.5em;
     }
-    
+
     .title-line {
         width: 40px;
     }
-    
+
     .name-inputs,
     .date-inputs,
     .time-inputs,
     .custom-coords {
         flex-direction: column;
     }
-    
+
     .input-with-unit {
         width: 100%;
     }
-    
+
     .input-with-unit .form-input {
         width: 100%;
     }
-    
+
     .checkbox-grid {
         grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .pillars-display {
         grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .form-actions,
     .result-actions {
         flex-direction: column;
     }
-    
+
     .btn-primary,
     .btn-secondary {
         width: 100%;
         justify-content: center;
     }
 }
-/ *   L o a d i n g   A n i m a t i o n   * /  
- . l o a d i n g - c o n t a i n e r   {  
-         d i s p l a y :   f l e x ;  
-         f l e x - d i r e c t i o n :   c o l u m n ;  
-         a l i g n - i t e m s :   c e n t e r ;  
-         j u s t i f y - c o n t e n t :   c e n t e r ;  
-         p a d d i n g :   3 r e m ;  
-         t e x t - a l i g n :   c e n t e r ;  
- }  
-  
- . l o a d i n g - s p i n n e r   {  
-         w i d t h :   6 0 p x ;  
-         h e i g h t :   6 0 p x ;  
-         b o r d e r :   6 p x   s o l i d   v a r ( - - c o l o r - p r i m a r y - l i g h t ) ;  
-         b o r d e r - t o p :   6 p x   s o l i d   v a r ( - - c o l o r - a c c e n t - g o l d ) ;  
-         b o r d e r - r a d i u s :   5 0 % ;  
-         a n i m a t i o n :   s p i n   1 . 2 s   c u b i c - b e z i e r ( 0 . 6 8 ,   - 0 . 5 5 ,   0 . 2 7 ,   1 . 5 5 )   i n f i n i t e ;   / *   E a s i n g   f o r   s m o o t h e r   f e e l   * /  
-         m a r g i n - b o t t o m :   1 . 5 r e m ;  
- }  
-  
- . l o a d i n g - t e x t   {  
-         f o n t - f a m i l y :   v a r ( - - f o n t - s e r i f ) ;  
-         f o n t - s i z e :   1 . 2 r e m ;  
-         c o l o r :   v a r ( - - c o l o r - p r i m a r y ) ;  
-         f o n t - w e i g h t :   7 0 0 ;  
- }  
-  
- . l o a d i n g - s u b t e x t   {  
-         f o n t - s i z e :   0 . 9 r e m ;  
-         c o l o r :   v a r ( - - c o l o r - t e x t - l i g h t ) ;  
-         m a r g i n - t o p :   0 . 5 r e m ;  
-         a n i m a t i o n :   p u l s e   2 s   i n f i n i t e ;  
- }  
-  
- @ k e y f r a m e s   s p i n   {  
-         0 %   {   t r a n s f o r m :   r o t a t e ( 0 d e g ) ;   }  
-         1 0 0 %   {   t r a n s f o r m :   r o t a t e ( 3 6 0 d e g ) ;   }  
- }  
-  
- @ k e y f r a m e s   p u l s e   {  
-         0 %   {   o p a c i t y :   0 . 6 ;   }  
-         5 0 %   {   o p a c i t y :   1 ;   }  
-         1 0 0 %   {   o p a c i t y :   0 . 6 ;   }  
- }  
- 
+
+/* Loading Animation */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    text-align: center;
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 6px solid var(--color-primary-light);
+    border-top: 6px solid var(--color-accent-gold);
+    border-radius: 50%;
+    animation: spin 1.2s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
+    /* Easing for smoother feel */
+    margin-bottom: 1.5rem;
+}
+
+.loading-text {
+    font-family: var(--font-serif);
+    font-size: 1.2rem;
+    color: var(--color-primary);
+    font-weight: 700;
+}
+
+.loading-subtext {
+    font-size: 0.9rem;
+    color: var(--color-text-light);
+    margin-top: 0.5rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.6;
+    }
+}
+
+/* Source Tag */
+.source-tag {
+    font-size: 0.75rem;
+    padding: 0.2em 0.6em;
+    background-color: var(--color-white);
+    color: var(--color-primary);
+    border-radius: 12px;
+    font-weight: 500;
+    margin-left: auto;
+    box-shadow: var(--shadow-sm);
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Ziwei Grid Fixes */
+.ziwei-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    background-color: var(--color-border);
+    border: 1px solid var(--color-border);
+    margin-top: 10px;
+}
+
+.ziwei-palace {
+    background-color: var(--color-white);
+    min-height: 100px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+}
+
+.ziwei-palace-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8em;
+    border-bottom: 1px solid var(--color-background);
+    margin-bottom: 4px;
+    color: var(--color-text-light);
+}
+
+.ziwei-palace-name {
+    font-weight: 700;
+    color: var(--color-primary);
+}

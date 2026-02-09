@@ -427,7 +427,7 @@ class DivinationAdapter {
                 return {
                     name: p.name || p.palace_type || '?',
                     branch: p.branch || '',
-                    stars: allStars
+                    stars: (p.stars && p.stars[0] && p.stars[0].type) ? p.stars : allStars
                 };
             });
         } else if (srcMainStars) {
@@ -747,7 +747,10 @@ class DivinationRenderer {
 
         return `
             <div class="result-card">
-                <div class="result-card-header"><h3 class="result-card-title">紫微斗数</h3></div>
+                <div class="result-card-header">
+                    <h3 class="result-card-title">紫微斗数</h3>
+                    <span class="source-tag">${data.source === 'API' ? '✨ 高性能API版' : '⚡ 予備JS版'}</span>
+                </div>
                 <div class="result-card-body">
                     <div class="important-box">
                         <p><span class="highlight">★ 命宮</span>：${data.mingPalace}宮</p>
