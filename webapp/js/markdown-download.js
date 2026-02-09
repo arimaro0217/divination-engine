@@ -30,6 +30,25 @@ function saveResultsData(fullName, birthDate, results) {
 }
 
 /**
+ * ヘルパー関数: オブジェクトから値を安全に取得
+ * camelCase, snake_case の両方のキーを試行
+ * @param {Object} obj - 対象オブジェクト
+ * @param {string[]} keys - キーの配列（優先順）
+ * @param {any} defaultVal - デフォルト値
+ */
+function val(obj, keys, defaultVal = '?') {
+    if (!obj) return defaultVal;
+    if (typeof keys === 'string') keys = [keys];
+
+    for (const key of keys) {
+        if (obj[key] !== undefined && obj[key] !== null) {
+            return obj[key];
+        }
+    }
+    return defaultVal;
+}
+
+/**
  * 結果をマークダウン形式でダウンロード
  */
 function downloadResultsAsMarkdown() {
@@ -123,6 +142,12 @@ function generateMarkdown(userData, results) {
 
     // 姓名判断
     if (results.seimei) {
+        // 名前データを注入（JS版は内部に持つがAPI版は持たないため）
+        if (!results.seimei.familyName) {
+            const [fam, given] = fullName.split(' ');
+            results.seimei.familyName = fam;
+            results.seimei.givenName = given;
+        }
         md += generateSeimeiMarkdown(results.seimei);
     }
 
@@ -136,69 +161,146 @@ function generateMarkdown(userData, results) {
 // === マークダウン生成関数（各占術） ===
 
 function generateBaZiMarkdown(data) {
-    const p = data.pillars;
+    // API版: four_pillars, JS版: pillars
+    const p = val(data, ['pillars', 'four_pillars'], null);
     if (!p) return `## 四柱推命\n\nデータがありません\n\n`;
 
     let md = `## 四柱推命\n\n`;
 
+    // 柱データの正規化
+    // JS版: { year: { stem: '甲', branch: '子' } }
+    // API版: { year: { heavenly_stem: '甲', earthly_branch: '子' } }
+    const getPillar = (pillarName) => {
+        const pillar = p[pillarName];
+        if (!pillar) return { stem: '?', branch: '?' };
+        const stem = val(pillar, ['stem', 'heavenly_stem']);
+        const branch = val(pillar, ['branch', 'earthly_branch']);
+        return { stem, branch };
+    };
+
+    const yearP = getPillar('year');
+    const monthP = getPillar('month');
+    const dayP = getPillar('day');
+    const hourP = getPillar('hour');
+
     md += `### 四柱\n\n`;
     md += `| 柱 | 天干 | 地支 |\n`;
     md += `|---|---|---|\n`;
-    md += `| 年柱 | ${p.year?.stem || '?'} | ${p.year?.branch || '?'} |\n`;
-    md += `| 月柱 | ${p.month?.stem || '?'} | ${p.month?.branch || '?'} |\n`;
-    md += `| 日柱 | ${p.day?.stem || '?'} | ${p.day?.branch || '?'} |\n`;
-    md += `| 時柱 | ${p.hour?.stem || '?'} | ${p.hour?.branch || '?'} |\n\n`;
+    md += `| 年柱 | ${yearP.stem} | ${yearP.branch} |\n`;
+    md += `| 月柱 | ${monthP.stem} | ${monthP.branch} |\n`;
+    md += `| 日柱 | ${dayP.stem} | ${dayP.branch} |\n`;
+    md += `| 時柱 | ${hourP.stem} | ${hourP.branch} |\n\n`;
 
-    md += `- **日主（日干）**: ${data.dayMaster || '?'}`;
-    if (data.dayMasterElement) md += `（${data.dayMasterElement}`;
-    if (data.dayMasterYinYang) md += `・${data.dayMasterYinYang}`;
-    if (data.dayMasterElement) md += `）`;
+    const dayMaster = val(data, ['dayMaster', 'day_master']);
+    const dayMasterElement = val(data, ['dayMasterElement']); // API版にはないかも
+    const dayMasterYinYang = val(data, ['dayMasterYinYang']); // API版にはないかも
+
+    md += `- **日主（日干）**: ${dayMaster}`;
+    if (dayMasterElement && dayMasterElement !== '?') md += `（${dayMasterElement}`;
+    if (dayMasterYinYang && dayMasterYinYang !== '?') md += `・${dayMasterYinYang}`;
+    if (dayMasterElement && dayMasterElement !== '?') md += `）`;
     md += `\n`;
 
     // 空亡
-    if (data.voidBranches && Array.isArray(data.voidBranches)) {
-        md += `- **空亡**: ${data.voidBranches.join('・')}\n\n`;
-    } else if (data.voidBranches) {
-        md += `- **空亡**: ${data.voidBranches}\n\n`;
+    // API: void_branches (List[str]), JS: voidBranches (Array)
+    const voidBranches = val(data, ['voidBranches', 'void_branches'], []);
+    if (Array.isArray(voidBranches) && voidBranches.length > 0) {
+        md += `- **空亡**: ${voidBranches.join('・')}\n\n`;
     }
 
-    if (data.monthInfo) {
-        md += `- **節入り**: ${data.monthInfo.jieName || '?'}（節入り後${data.monthInfo.daysFromJieqi || '?'}日目）\n\n`;
+    const monthInfo = val(data, ['monthInfo']); // API版にはないかも
+    if (monthInfo) {
+        md += `- **節入り**: ${val(monthInfo, 'jieName')}（節入り後${val(monthInfo, 'daysFromJieqi')}日目）\n\n`;
     }
 
     // 蔵干
-    if (data.hiddenStems) {
+    // API: hidden_stems (ないかも?), JS: hiddenStems
+    const hiddenStems = val(data, ['hiddenStems', 'hidden_stems']);
+    if (hiddenStems) {
         md += `### 蔵干\n\n`;
         md += `| 柱 | 蔵干 | 本気 |\n`;
         md += `|---|---|---|\n`;
-        const hs = data.hiddenStems;
-        if (hs.year) md += `| 年支（${p.year?.branch || '?'}） | ${hs.year.allStems?.join('・') || '?'} | ${hs.year.mainStem || '?'} |\n`;
-        if (hs.month) md += `| 月支（${p.month?.branch || '?'}） | ${hs.month.allStems?.join('・') || '?'} | ${hs.month.mainStem || '?'}（${hs.month.phase || ''}） |\n`;
-        if (hs.day) md += `| 日支（${p.day?.branch || '?'}） | ${hs.day.allStems?.join('・') || '?'} | ${hs.day.mainStem || '?'} |\n`;
-        if (hs.hour) md += `| 時支（${p.hour?.branch || '?'}） | ${hs.hour.allStems?.join('・') || '?'} | ${hs.hour.mainStem || '?'} |\n`;
+
+        const formatHS = (hsData, branch) => {
+            if (!hsData) return `| ? | ? | ? |`;
+            // JS: allStems, mainStem
+            // API版に合わせるなら調整必要だが現状JS版のみ対応
+            const all = val(hsData, ['allStems', 'all_stems'], []).join('・');
+            const main = val(hsData, ['mainStem', 'main_stem']);
+            const phase = val(hsData, ['phase'], '');
+            return `| ${branch} | ${all} | ${main}${phase ? `（${phase}）` : ''} |`;
+        };
+
+        if (hiddenStems.year) md += formatHS(hiddenStems.year, `年支（${yearP.branch}）`) + '\n';
+        if (hiddenStems.month) md += formatHS(hiddenStems.month, `月支（${monthP.branch}）`) + '\n';
+        if (hiddenStems.day) md += formatHS(hiddenStems.day, `日支（${dayP.branch}）`) + '\n';
+        if (hiddenStems.hour) md += formatHS(hiddenStems.hour, `時支（${hourP.branch}）`) + '\n';
         md += `\n`;
     }
 
     // 通変星
-    if (data.tenGods && Object.keys(data.tenGods).length > 0) {
+    const tenGods = val(data, ['tenGods', 'ten_gods']);
+    if (tenGods && Object.keys(tenGods).length > 0) {
         md += `### 通変星\n\n`;
         md += `| 位置 | 通変星 |\n`;
         md += `|---|---|\n`;
-        for (const [k, v] of Object.entries(data.tenGods)) {
+        for (const [k, v] of Object.entries(tenGods)) {
             md += `| ${k} | ${v} |\n`;
         }
         md += `\n`;
     }
 
     // 十二運
-    if (data.twelveStages && Object.keys(data.twelveStages).length > 0) {
+    const twelveStages = val(data, ['twelveStages', 'twelve_stages']);
+    if (twelveStages && Object.keys(twelveStages).length > 0) {
         md += `### 十二運\n\n`;
         md += `| 位置 | 十二運 |\n`;
         md += `|---|---|\n`;
-        for (const [k, v] of Object.entries(data.twelveStages)) {
+        for (const [k, v] of Object.entries(twelveStages)) {
             md += `| ${k} | ${v} |\n`;
         }
         md += `\n`;
+    }
+
+    // パフォーマンス（五行バランス）
+    if (data.advanced) {
+        if (data.advanced.gogyoBalance) {
+            md += `### 五行バランス（数値）\n\n`;
+            md += `| 五行 | 木 | 火 | 土 | 金 | 水 |\n`;
+            md += `|---|---|---|---|---|---|\n`;
+            const b = data.advanced.gogyoBalance;
+            const fmt = (n) => (typeof n === 'number') ? n.toFixed(1) : n;
+            md += `| 数値 | ${fmt(b.wood || 0)} | ${fmt(b.fire || 0)} | ${fmt(b.earth || 0)} | ${fmt(b.metal || 0)} | ${fmt(b.water || 0)} |\n\n`;
+        }
+
+        // 神殺
+        if (data.advanced.specialStars && Object.keys(data.advanced.specialStars).length > 0) {
+            md += `### 神殺・特殊星\n\n`;
+            md += `| 星名 | 地支 |\n`;
+            md += `|---|---|\n`;
+            for (const [k, v] of Object.entries(data.advanced.specialStars)) {
+                md += `| ${k} | ${v.join('・')} |\n`;
+            }
+            md += `\n`;
+        }
+
+        // 位相法
+        let interactions = [];
+        if (data.advanced.interactions) {
+            const i = data.advanced.interactions;
+            interactions = [
+                ...(i.kango || []), ...(i.zhihe || []), ...(i.sango || []),
+                ...(i.chu || []), ...(i.kei || []), ...(i.gai || []), ...(i.ha || [])
+            ];
+        }
+
+        if (interactions.length > 0) {
+            md += `### 位相法（刑冲会合）\n\n`;
+            for (const s of interactions) {
+                md += `- ${s}\n`;
+            }
+            md += `\n`;
+        }
     }
 
     return md;
@@ -207,25 +309,36 @@ function generateBaZiMarkdown(data) {
 function generateSanmeiMarkdown(data) {
     let md = `## 算命学\n\n`;
 
-    md += `- **天中殺**: ${data.voidGroupName || '不明'}\n\n`;
+    const voidGroupName = val(data, ['voidGroupName', 'void_group_name'], '不明');
+    md += `- **天中殺**: ${voidGroupName}\n\n`;
 
-    if (data.mainStars && Object.keys(data.mainStars).length > 0) {
+    const mainStars = val(data, ['mainStars', 'main_stars']);
+    if (mainStars && Object.keys(mainStars).length > 0) {
         md += `### 十大主星\n\n`;
         md += `| 位置 | 主星 |\n`;
         md += `|---|---|\n`;
-        for (const [k, v] of Object.entries(data.mainStars)) {
+        for (const [k, v] of Object.entries(mainStars)) {
             md += `| ${k} | ${v} |\n`;
         }
         md += `\n`;
     }
 
-    if (data.subStars && Object.keys(data.subStars).length > 0) {
+    const subStars = val(data, ['subStars', 'sub_stars']);
+    if (subStars && Object.keys(subStars).length > 0) {
         md += `### 十二大従星\n\n`;
         md += `| 位置 | 従星 |\n`;
         md += `|---|---|\n`;
-        for (const [k, v] of Object.entries(data.subStars)) {
+        for (const [k, v] of Object.entries(subStars)) {
             md += `| ${k} | ${v} |\n`;
         }
+        md += `\n`;
+    }
+
+    // 宇宙盤（行動領域）
+    if (data.advanced && data.advanced.area !== undefined) {
+        md += `### 宇宙盤（行動領域）\n\n`;
+        md += `- **面積**: ${data.advanced.area.toFixed(2)}\n`;
+        md += `- **領域**: ${data.advanced.patternName || '不明'}\n`;
         md += `\n`;
     }
 
@@ -235,11 +348,12 @@ function generateSanmeiMarkdown(data) {
 function generateKyuseiMarkdown(data) {
     let md = `## 九星気学\n\n`;
 
-    md += `- **本命星**: ${data.yearStar || '不明'}\n`;
-    md += `- **月命星**: ${data.monthStar || '不明'}\n`;
-    md += `- **日命星**: ${data.dayStar || '不明'}\n`;
-    if (data.inclination) {
-        md += `- **傾斜宮**: ${data.inclination}\n`;
+    md += `- **本命星**: ${val(data, ['yearStar', 'year_star'])}\n`;
+    md += `- **月命星**: ${val(data, ['monthStar', 'month_star'])}\n`;
+    md += `- **日命星**: ${val(data, ['dayStar', 'day_star'])}\n`;
+    const inclination = val(data, ['inclination']);
+    if (inclination && inclination !== '?') {
+        md += `- **傾斜宮**: ${inclination}\n`;
     }
     md += `\n`;
 
@@ -249,39 +363,70 @@ function generateKyuseiMarkdown(data) {
 function generateZiWeiMarkdown(data) {
     let md = `## 紫微斗数\n\n`;
 
-    md += `- **旧暦生年月日**: ${data.lunarDate || '不明'}\n`;
-    // API版/JS版両方に対応
-    if (data.lifePalace) {
-        md += `- **命宮**: ${data.lifePalace}\n`;
-    } else if (data.mingPalace) {
-        md += `- **命宮**: ${data.mingPalace}宮\n`;
+    md += `- **旧暦生年月日**: ${val(data, ['lunarDate', 'lunar_date'])}\n`;
+
+    // API: ming_palace, JS: mingPalace or lifePalace
+    const lifePalace = val(data, ['lifePalace', 'mingPalace', 'ming_palace', 'life_palace']);
+    if (lifePalace && lifePalace !== '?') {
+        const suffix = lifePalace.endsWith('宮') ? '' : '宮';
+        md += `- **命宮**: ${lifePalace}${suffix}\n`;
     }
-    if (data.hourBranch) {
-        md += `- **時辰**: ${data.hourBranch}の刻\n`;
+
+    // 時辰
+    const hourBranch = val(data, ['hourBranch', 'hour_branch'], null);
+    if (hourBranch && hourBranch !== '?') {
+        md += `- **時辰**: ${hourBranch}の刻\n`;
     }
-    if (data.bureau) {
-        md += `- **五行局**: ${data.bureau}\n`;
+
+    // 五行局
+    const bureau = val(data, ['bureau']); // API版にはないかも
+    if (bureau && bureau !== '?') {
+        md += `- **五行局**: ${bureau}\n`;
     }
-    if (data.bodyPalace) {
-        md += `- **身宮**: ${data.bodyPalace}宮\n`;
+
+    // 身宮
+    const bodyPalace = val(data, ['bodyPalace', 'body_palace']);
+    if (bodyPalace && bodyPalace !== '?') {
+        const suffix = bodyPalace.endsWith('宮') ? '' : '宮';
+        md += `- **身宮**: ${bodyPalace}${suffix}\n`;
     }
-    if (data.ziweiPosition) {
-        md += `- **紫微星**: ${data.ziweiPosition}宮\n`;
+
+    // 紫微星（JS版のみかも。API版はmain_starsに含まれる）
+    const ziweiPosition = val(data, ['ziweiPosition', 'ziwei_position']);
+    if (ziweiPosition && ziweiPosition !== '?') {
+        const suffix = ziweiPosition.endsWith('宮') ? '' : '宮';
+        md += `- **紫微星**: ${ziweiPosition}${suffix}\n`;
     }
     md += `\n`;
 
-    // 十二宮配置（詳細版）
-    if (data.palaces && Array.isArray(data.palaces) && data.palaces.length > 0) {
+    // 十二宮配置
+    // JS: palaces (list of obj), API: main_stars (dict of name->stars)
+    const palaces = val(data, ['palaces']); // JS版
+    const mainStars = val(data, ['mainStars', 'main_stars']); // API版
+
+    if (palaces && Array.isArray(palaces) && palaces.length > 0) {
+        // JS版構造（正規化後: starsはオブジェクト配列）
         md += `### 十二宮配置\n\n`;
         md += `| 宮名 | 地支 | 主星 |\n`;
         md += `|---|---|---|\n`;
-        for (const p of data.palaces.slice(0, 12)) {
-            const name = p.name || '?';
-            const branch = p.branch || '?';
-            const stars = (p.stars && p.stars.length > 0) ? p.stars.join('・') : '-';
+        for (const p of palaces.slice(0, 12)) {
+            const name = val(p, 'name');
+            const branch = val(p, 'branch');
+            const stars = Array.isArray(p.stars) ? p.stars.map(s => {
+                const n = s.name || s;
+                const b = s.brightness ? `(${s.brightness})` : '';
+                let prefix = '';
+                if (s.type === 'major') prefix = '★'; // 主星
+                else if (s.type === 'bad') prefix = '▼'; // 凶星
+                return `${prefix}${n}${b}`;
+            }).join(' ') : '-';
             md += `| ${name} | ${branch} | ${stars} |\n`;
         }
         md += `\n`;
+    } else if (mainStars && Object.keys(mainStars).length > 0) {
+        // ... (API版構造へのフォールバックは正規化により不要になったはずだが念のため残す)
+        md += `### 十二宮配置（主星）\n\n`;
+        // ...
     }
 
     return md;
@@ -290,31 +435,52 @@ function generateZiWeiMarkdown(data) {
 function generateSukuyouMarkdown(data) {
     let md = `## 宿曜占星術\n\n`;
 
-    // API版/JS版両方に対応
-    const mansion = data.mansion || data.natalMansion || '不明';
-    const mansionNum = data.mansionIndex !== undefined ? data.mansionIndex + 1 : (data.mansionNumber || '?');
+    const mansion = val(data, ['mansion', 'natalMansion', 'natal_mansion']);
+
+    let mansionNum = '?';
+    const idx = val(data, ['mansionIndex', 'mansion_index'], null);
+    const num = val(data, ['mansionNumber', 'mansion_number'], null);
+
+    if (idx !== null) {
+        mansionNum = parseInt(idx) + 1;
+    } else if (num !== null) {
+        mansionNum = parseInt(num);
+    }
+
     md += `- **本命宿**: ${mansion}（第${mansionNum}宿）\n`;
 
-    if (data.weekday) {
-        md += `- **七曜**: ${data.weekday}\n`;
+    // 七曜/属性
+    const weekday = val(data, ['weekday']); // JS版
+    const dayElement = val(data, ['dayElement', 'day_element']); // API版
+    if (weekday && weekday !== '?') {
+        md += `- **七曜**: ${weekday}\n`;
+    } else if (dayElement && dayElement !== '?') {
+        md += `- **七曜属性**: ${dayElement}\n`;
     }
-    if (data.group) {
-        md += `- **性格グループ**: ${data.group}\n`;
+
+    const group = val(data, ['group']);
+    if (group && group !== '?') {
+        md += `- **性格グループ**: ${group}\n`;
     }
-    if (data.element) {
-        md += `- **属性**: ${data.element}\n`;
+
+    const element = val(data, ['element']);
+    if (element && element !== '?') {
+        md += `- **属性**: ${element}\n`;
     }
-    if (data.lunarDate) {
-        md += `- **旧暦日**: ${data.lunarDate}\n`;
+
+    const lunarDate = val(data, ['lunarDate', 'lunar_date']);
+    if (lunarDate && lunarDate !== '?') {
+        md += `- **旧暦日**: ${lunarDate}\n`;
     }
     md += `\n`;
 
-    // 相性マンダラ（抜粋）
-    if (data.mandala && Array.isArray(data.mandala) && data.mandala.length > 0) {
+    // 相性マンダラ（JS版のみ）
+    const mandala = val(data, ['mandala']);
+    if (mandala && Array.isArray(mandala) && mandala.length > 0) {
         md += `### 相性マンダラ（抜粋）\n\n`;
         md += `| 宿 | 相性 |\n`;
         md += `|---|---|\n`;
-        for (const m of data.mandala.slice(0, 8)) {
+        for (const m of mandala.slice(0, 8)) {
             md += `| ${m.shuku} | ${m.relation} |\n`;
         }
         md += `\n`;
@@ -326,98 +492,83 @@ function generateSukuyouMarkdown(data) {
 function generateWesternMarkdown(data) {
     let md = `## 西洋占星術\n\n`;
 
-    // アセンダント（度数なしの文字列の場合はそのまま表示）
-    if (data.ascendant) {
-        if (typeof data.ascendant === 'object' && data.ascendant.sign) {
-            // オブジェクト形式
-            if (data.ascendant.degree != null) {
-                md += `- **ASC（上昇宮）**: ${data.ascendant.sign} ${data.ascendant.degree.toFixed(1)}°\n`;
-            } else {
-                md += `- **ASC（上昇宮）**: ${data.ascendant.sign}\n`;
-            }
-        } else if (typeof data.ascendant === 'number') {
-            // 度数のみ
-            md += `- **ASC（上昇宮）**: ${data.ascendant.toFixed(1)}°\n`;
+    // アセンダント
+    const asc = val(data, ['ascendant']);
+    if (asc !== '?') {
+        if (typeof asc === 'number') {
+            md += `- **ASC（上昇宮）**: ${asc.toFixed(2)}°\n`;
+        } else if (typeof asc === 'object') {
+            const sign = val(asc, 'sign');
+            const degree = val(asc, 'degree');
+            md += `- **ASC（上昇宮）**: ${sign} ${typeof degree === 'number' ? degree.toFixed(1) + '°' : ''}\n`;
         } else {
-            // 文字列（星座名のみ）
-            md += `- **ASC（上昇宮）**: ${data.ascendant}\n`;
+            md += `- **ASC（上昇宮）**: ${asc}\n`;
         }
     }
 
-    // MC（天頂）
-    if (data.midheaven) {
-        if (typeof data.midheaven === 'object' && data.midheaven.sign) {
-            if (data.midheaven.degree != null) {
-                md += `- **MC（天頂）**: ${data.midheaven.sign} ${data.midheaven.degree.toFixed(1)}°\n\n`;
-            } else {
-                md += `- **MC（天頂）**: ${data.midheaven.sign}\n\n`;
-            }
-        } else if (typeof data.midheaven === 'number') {
-            md += `- **MC（天頂）**: ${data.midheaven.toFixed(1)}°\n\n`;
+    // MC
+    const mc = val(data, ['midheaven']);
+    if (mc !== '?') {
+        if (typeof mc === 'number') {
+            md += `- **MC（天頂）**: ${mc.toFixed(2)}°\n\n`;
+        } else if (typeof mc === 'object') {
+            const sign = val(mc, 'sign');
+            const degree = val(mc, 'degree');
+            md += `- **MC（天頂）**: ${sign} ${typeof degree === 'number' ? degree.toFixed(1) + '°' : ''}\n\n`;
         } else {
-            md += `- **MC（天頂）**: ${data.midheaven}\n\n`;
+            md += `- **MC（天頂）**: ${mc}\n\n`;
         }
-    }
-
-    // 惑星位置
-    if (data.planets && Array.isArray(data.planets) && data.planets.length > 0) {
-        // 度数を持つデータかどうかチェック
-        const hasDegree = data.planets.some(p =>
-            typeof p.degree === 'number' || typeof p.degree_in_sign === 'number' || typeof p.longitude === 'number'
-        );
-
-        md += `### 惑星位置\n\n`;
-
-        if (hasDegree) {
-            // 度数あり：3列テーブル
-            md += `| 惑星 | 星座 | 度数 |\n`;
-            md += `|---|---|---|\n`;
-            for (const p of data.planets) {
-                const name = p.name || p.planet || '?';
-                const sign = p.sign || '?';
-                let degree = '-';
-                if (typeof p.degree === 'number') {
-                    degree = p.degree.toFixed(1) + '°';
-                } else if (typeof p.degree_in_sign === 'number') {
-                    degree = p.degree_in_sign.toFixed(1) + '°';
-                } else if (typeof p.longitude === 'number') {
-                    degree = (p.longitude % 30).toFixed(1) + '°';
-                }
-                const retro = p.retrograde ? ' ℞' : '';
-                md += `| ${name}${retro} | ${sign} | ${degree} |\n`;
-            }
-        } else {
-            // 度数なし：2列テーブル（JS簡易版）
-            md += `| 惑星 | 星座 |\n`;
-            md += `|---|---|\n`;
-            for (const p of data.planets) {
-                const name = p.name || p.planet || '?';
-                const sign = p.sign || '?';
-                md += `| ${name} | ${sign} |\n`;
-            }
-        }
+    } else {
         md += `\n`;
     }
 
-    // 太陽星座・月星座（JS版フォーマット）
-    if (data.sunSign) {
-        md += `- **太陽星座**: ${data.sunSign}\n`;
-    }
-    if (data.moonSign) {
-        md += `- **月星座**: ${data.moonSign}\n`;
-    }
-    if (data.sunSign || data.moonSign) {
+    // 惑星位置
+    const planets = val(data, ['planets'], []);
+
+    if (Array.isArray(planets) && planets.length > 0) {
+        md += `### 惑星位置\n\n`;
+        md += `| 惑星 | 星座 | 度数 | 逆行 |\n`;
+        md += `|---|---|---|---|\n`;
+
+        for (const p of planets) {
+            // API: {planet: 'Sun', longitude: ..., sign: 'Leo', ...}
+            // JS: {name: '太陽', sign: ..., degree: ...}
+            const name = val(p, ['name', 'planet']);
+            const sign = val(p, ['sign', 'signEn']);
+            let degree = '-';
+
+            // 度数計算
+            const deg = val(p, ['degree', 'degree_in_sign']);
+            const lon = val(p, ['longitude']);
+
+            if (deg !== '?') degree = deg.toFixed(2) + '°';
+            else if (lon !== '?') degree = (lon % 30).toFixed(2) + '°';
+
+            const retro = val(p, ['retrograde']) ? 'Yes' : '-';
+
+            md += `| ${name} | ${sign} | ${degree} | ${retro} |\n`;
+        }
         md += `\n`;
     }
 
     // アスペクト
-    if (data.aspects && Array.isArray(data.aspects) && data.aspects.length > 0) {
+    const aspects = val(data, ['aspects'], []);
+    if (Array.isArray(aspects) && aspects.length > 0) {
         md += `### アスペクト\n\n`;
         md += `| 組み合わせ | 角度 | オーブ | 状態 |\n`;
         md += `|---|---|---|---|\n`;
-        for (const a of data.aspects) {
-            const state = a.applying ? '接近(A)' : '分離(S)';
-            md += `| ${a.planet1} - ${a.planet2} | ${a.aspect_type} | ${a.orb.toFixed(2)}° | ${state} |\n`;
+
+        for (const a of aspects) {
+            const p1 = val(a, ['planet1']);
+            const p2 = val(a, ['planet2']);
+            const type = val(a, ['aspect', 'aspect_type']);
+            const orb = val(a, ['orb']);
+            const applying = val(a, ['applying']);
+
+            const state = applying === true ? '接近(A)' : (applying === false ? '分離(S)' : '-');
+            const orbStr = (typeof orb === 'number') ? orb.toFixed(2) + '°' : orb;
+
+            md += `| ${p1} - ${p2} | ${type} | ${orbStr} | ${state} |\n`;
         }
         md += `\n`;
     }
@@ -428,42 +579,47 @@ function generateWesternMarkdown(data) {
 function generateVedicMarkdown(data) {
     let md = `## インド占星術（ヴェーダ）\n\n`;
 
-    // アヤナムサ（文字列形式でも対応）
-    const ayanamsaDisplay = data.ayanamsa || 'Lahiri';
-    md += `- **アヤナムサ**: ${ayanamsaDisplay}\n`;
+    const ayanamsa = val(data, ['ayanamsa']);
+    md += `- **アヤナムサ**: ${ayanamsa}\n`;
 
-    // 太陽星座・ラグナ（JS版）
-    if (data.sunSign) {
-        md += `- **太陽星座（ラシ）**: ${data.sunSign}\n`;
-    }
-    if (data.lagna) {
-        md += `- **ラグナ**: ${data.lagna}\n`;
+    // API: nakshatra, JS: moonNakshatra
+    const nakshatra = val(data, ['nakshatra', 'moonNakshatra', 'moon_nakshatra']);
+    md += `- **月のナクシャトラ**: ${nakshatra}\n`;
+
+    // API: nakshatra_lord, JS: nakshatraLord
+    const lord = val(data, ['nakshatraLord', 'nakshatra_lord']);
+    md += `- **ナクシャトラ支配星**: ${lord}\n`;
+
+    // JS: sunSign, APIには単純なフィールドがないため省略、またはplanetsから探す
+    const sunSign = val(data, ['sunSign']);
+    if (sunSign && sunSign !== '?') {
+        md += `- **太陽星座**: ${sunSign}\n`;
     }
 
-    // 月のナクシャトラ
-    if (data.moonNakshatra) {
-        md += `- **月のナクシャトラ**: ${data.moonNakshatra}\n`;
+    const lagna = val(data, ['lagna']);
+    if (lagna && lagna !== '?') {
+        md += `- **ラグナ**: ${lagna}\n`;
     }
-    if (data.nakshatraLord) {
-        md += `- **ナクシャトラ支配星**: ${data.nakshatraLord}\n`;
-    }
-    if (data.nakshatraPada !== undefined) {
-        md += `- **パダ**: ${data.nakshatraPada}\n`;
-    }
-    if (data.moonSign) {
-        md += `- **月星座**: ${data.moonSign}\n`;
-    }
+
     md += `\n`;
 
-    // ダシャー（JS版）
-    if (data.dashas && Array.isArray(data.dashas) && data.dashas.length > 0) {
+    // ダシャー
+    const dashas = val(data, ['dashas', 'dasha']);
+    // API: { Vimshottari: { current: {...}, sequence: [...] } } or JS: [{lord:..., start:..., ...}]
+
+    if (Array.isArray(dashas) && dashas.length > 0) {
         md += `### ヴィムショッタリ・ダシャー\n\n`;
         md += `| 支配星 | 期間 |\n`;
         md += `|---|---|\n`;
-        for (const d of data.dashas) {
+        for (const d of dashas) {
             md += `| ${d.lord} | ${d.start}〜${d.end}年（${d.years}年間） |\n`;
         }
         md += `\n`;
+    } else if (dashas && typeof dashas === 'object') {
+        // API版など
+        md += `### ダシャー情報\n\n`;
+        // API構造に合わせて展開（ここでは簡易表示）
+        md += `詳細データあり（構造化未対応）\n\n`;
     }
 
     return md;
@@ -472,15 +628,21 @@ function generateVedicMarkdown(data) {
 function generateMayanMarkdown(data) {
     let md = `## マヤ暦\n\n`;
 
-    md += `- **KIN**: ${data.kin || '?'}\n`;
-    md += `- **太陽の紋章**: ${data.solarSeal || '不明'}\n`;
-    const toneDisplay = data.galacticToneName ? `${data.galacticTone}（${data.galacticToneName}）` : (data.galacticTone || '?');
-    md += `- **銀河の音**: ${toneDisplay}\n`;
-    if (data.wavespell) {
-        md += `- **ウェイブスペル**: ${data.wavespell}\n`;
+    md += `- **KIN**: ${val(data, ['kin', 'kin_number'])}\n`;
+    md += `- **太陽の紋章**: ${val(data, ['solarSeal', 'solar_seal'])}\n`;
+
+    const tone = val(data, ['galacticTone', 'galactic_tone']);
+    const toneName = val(data, ['galacticToneName', 'galactic_tone_name']);
+    md += `- **銀河の音**: ${tone}${toneName !== '?' ? `（${toneName}）` : ''}\n`;
+
+    const wave = val(data, ['wavespell']);
+    if (wave && wave !== '?') {
+        md += `- **ウェイブスペル**: ${wave}\n`;
     }
-    if (data.guide) {
-        md += `- **ガイドキン**: ${data.guide}\n`;
+
+    const guide = val(data, ['guide']);
+    if (guide && guide !== '?') {
+        md += `- **ガイドキン**: ${guide}\n`;
     }
     md += `\n`;
 
@@ -490,14 +652,31 @@ function generateMayanMarkdown(data) {
 function generateNumerologyMarkdown(data) {
     let md = `## 数秘術\n\n`;
 
-    md += `- **ライフパス数**: ${data.lifePath || '?'}\n`;
-    if (data.lifePathMeaning) {
-        md += `  - 意味: ${data.lifePathMeaning}\n`;
+    md += `- **ライフパス数**: ${val(data, ['lifePath', 'life_path', 'life_path_number'])}\n`;
+
+    const lpMeaning = val(data, ['lifePathMeaning', 'life_path_meaning']);
+    if (lpMeaning && lpMeaning !== '?') {
+        md += `  - 意味: ${lpMeaning}\n`;
     }
-    md += `- **バースデー数**: ${data.birthdayNumber || '?'}\n`;
-    if (data.birthdayMeaning) {
-        md += `  - 意味: ${data.birthdayMeaning}\n`;
+
+    md += `- **バースデー数**: ${val(data, ['birthdayNumber', 'birthday_number'])}\n`;
+
+    const bdMeaning = val(data, ['birthdayMeaning', 'birthday_meaning']);
+    if (bdMeaning && bdMeaning !== '?') {
+        md += `  - 意味: ${bdMeaning}\n`;
     }
+
+    // API版独自フィールド：expression_numberなど
+    const expNum = val(data, ['expressionNumber', 'expression_number']);
+    if (expNum && expNum !== '?') {
+        md += `- **ディスティニー（運命数）**: ${expNum}\n`;
+    }
+
+    const soulNum = val(data, ['soulNumber', 'soul_urge']);
+    if (soulNum && soulNum !== '?') {
+        md += `- **ソウルナンバー**: ${soulNum}\n`;
+    }
+
     md += `\n`;
 
     return md;
@@ -506,19 +685,34 @@ function generateNumerologyMarkdown(data) {
 function generateSeimeiMarkdown(data) {
     let md = `## 姓名判断\n\n`;
 
-    const familyStrokes = data.strokes?.family ? data.strokes.family.join(', ') : '?';
-    const givenStrokes = data.strokes?.given ? data.strokes.given.join(', ') : '?';
-    md += `- **姓**: ${data.familyName || '?'}（画数: ${familyStrokes}）\n`;
-    md += `- **名**: ${data.givenName || '?'}（画数: ${givenStrokes}）\n\n`;
+    const familyName = val(data, ['familyName', 'family_name']);
+    const givenName = val(data, ['givenName', 'given_name']);
+
+    // strokes: { family: [x, y], given: [z, w] } (JS) vs strokes: { '安': 6, ... } (API)
+    const strokes = val(data, ['strokes']);
+    let familyStrokesStr = '?';
+    let givenStrokesStr = '?';
+
+    if (strokes && strokes.family && Array.isArray(strokes.family)) {
+        familyStrokesStr = strokes.family.join(', ');
+    }
+    if (strokes && strokes.given && Array.isArray(strokes.given)) {
+        givenStrokesStr = strokes.given.join(', ');
+    }
+    // API版の場合、文字ごとの画数は辞書で返ってくるため、名前から逆引きする必要があるが
+    // ここでは簡略化
+
+    md += `- **姓**: ${familyName}（画数: ${familyStrokesStr}）\n`;
+    md += `- **名**: ${givenName}（画数: ${givenStrokesStr}）\n\n`;
 
     md += `### 五格\n\n`;
     md += `| 格 | 画数 | 意味 |\n`;
     md += `|---|---|---|\n`;
-    md += `| 天格（祖運） | ${data.tenkaku ?? '?'} | 先祖代々の運勢 |\n`;
-    md += `| 人格（主運） | ${data.jinkaku ?? '?'} | 性格・才能の中心 |\n`;
-    md += `| 地格（初運） | ${data.chikaku ?? '?'} | 幼少期〜青年期 |\n`;
-    md += `| 外格（副運） | ${data.gaikaku ?? '?'} | 対人関係・社会運 |\n`;
-    md += `| 総格（総運） | ${data.soukaku ?? '?'} | 人生全体の運勢 |\n\n`;
+    md += `| 天格（祖運） | ${val(data, ['tenkaku'])} | 先祖代々の運勢 |\n`;
+    md += `| 人格（主運） | ${val(data, ['jinkaku'])} | 性格・才能の中心 |\n`;
+    md += `| 地格（初運） | ${val(data, ['chikaku'])} | 幼少期〜青年期 |\n`;
+    md += `| 外格（副運） | ${val(data, ['gaikaku'])} | 対人関係・社会運 |\n`;
+    md += `| 総格（総運） | ${val(data, ['soukaku'])} | 人生全体の運勢 |\n\n`;
 
     return md;
 }

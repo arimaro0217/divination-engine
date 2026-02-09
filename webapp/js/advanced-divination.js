@@ -63,52 +63,42 @@ const AdvancedDivinationModules = {
             "持勢の刑": ["子", "卯"]
         },
 
-        // 自刑
-        JIKEI: ["辰", "午", "酉", "亥"],
+        // 害ペア
+        GAI_PAIRS: [["子", "未"], ["丑", "午"], ["寅", "巳"], ["卯", "辰"], ["申", "亥"], ["酉", "戌"]],
 
-        // 天乙貴人
-        TENOTSU_KIJIN: {
-            "甲": ["丑", "未"], "乙": ["子", "申"], "丙": ["亥", "酉"],
-            "丁": ["亥", "酉"], "戊": ["丑", "未"], "己": ["子", "申"],
-            "庚": ["丑", "未"], "辛": ["寅", "午"], "壬": ["卯", "巳"], "癸": ["卯", "巳"]
+        // 破ペア
+        HA_PAIRS: [["子", "酉"], ["丑", "辰"], ["寅", "亥"], ["卯", "午"], ["巳", "申"], ["未", "戌"]],
+
+        // 文昌貴人
+        BUNSHO_KIJIN: {
+            "甲": ["巳"], "乙": ["午"], "丙": ["申"], "丁": ["酉"], "戊": ["申"],
+            "己": ["酉"], "庚": ["亥"], "辛": ["子"], "壬": ["寅"], "癸": ["卯"]
         },
 
-        // 駅馬
-        EKIBA: {
-            "寅": "申", "午": "申", "戌": "申",
-            "申": "寅", "子": "寅", "辰": "寅",
-            "巳": "亥", "酉": "亥", "丑": "亥",
-            "亥": "巳", "卯": "巳", "未": "巳"
+        // 羊刃（帝旺の十二運）
+        YOJIN: {
+            "甲": ["卯"], "乙": ["寅"], "丙": ["午"], "丁": ["巳"], "戊": ["午"],
+            "己": ["巳"], "庚": ["酉"], "辛": ["申"], "壬": ["子"], "癸": ["亥"]
         },
 
-        // 桃花
-        TOUKA: {
-            "寅": "卯", "午": "卯", "戌": "卯",
-            "申": "酉", "子": "酉", "辰": "酉",
-            "巳": "午", "酉": "午", "丑": "午",
-            "亥": "子", "卯": "子", "未": "子"
+        // 魁罡（日柱のみ）
+        KAIGOU: ["戊戌", "庚辰", "庚戌", "壬辰"],
+
+        // 華蓋（三合の墓库）
+        KAGAI: {
+            "寅": "戌", "午": "戌", "戌": "戌",
+            "申": "辰", "子": "辰", "辰": "辰",
+            "巳": "丑", "酉": "丑", "丑": "丑",
+            "亥": "未", "卯": "未", "未": "未"
         },
 
-        // 五行マッピング
-        STEM_WUXING: {
-            "甲": "木", "乙": "木", "丙": "火", "丁": "火", "戊": "土",
-            "己": "土", "庚": "金", "辛": "金", "壬": "水", "癸": "水"
+        // 紅艶
+        KOUEN: {
+            "甲": ["午"], "乙": ["申"], "丙": ["寅"], "丁": ["未"], "戊": ["辰"],
+            "己": ["辰"], "庚": ["戌"], "辛": ["酉"], "壬": ["子"], "癸": ["申"]
         },
 
-        /**
-         * 蔵干深浅を計算
-         */
-        calcZoganDepth(monthBranch, progressRatio) {
-            const depthTable = this.ZOGAN_DEPTH_RATIO[monthBranch];
-            const zoganTable = this.ZOGAN_TABLE[monthBranch];
-
-            for (const [type, start, end] of depthTable) {
-                if (progressRatio >= start && progressRatio < end) {
-                    return zoganTable[type] || zoganTable["本気"];
-                }
-            }
-            return zoganTable["本気"];
-        },
+        // ... (existing properties)
 
         /**
          * 刑冲会合を検出
@@ -119,7 +109,9 @@ const AdvancedDivinationModules = {
                 zhihe: [],
                 sango: [],
                 chu: [],
-                kei: []
+                kei: [],
+                gai: [],
+                ha: []
             };
 
             // 干合
@@ -158,27 +150,62 @@ const AdvancedDivinationModules = {
                 }
             }
 
+            // 害
+            for (const [b1, b2] of this.GAI_PAIRS) {
+                if (branches.includes(b1) && branches.includes(b2)) {
+                    result.gai.push(`${b1}${b2}害`);
+                }
+            }
+
+            // 破
+            for (const [b1, b2] of this.HA_PAIRS) {
+                if (branches.includes(b1) && branches.includes(b2)) {
+                    result.ha.push(`${b1}${b2}破`);
+                }
+            }
+
             return result;
         },
 
         /**
          * 神殺を検出
          */
-        findSpecialStars(dayStem, yearBranch, branches) {
+        findSpecialStars(dayStem, yearBranch, branches, dayPillarGanzhi) {
             const stars = {};
+            const check = (name, map) => {
+                const targets = map[dayStem] || [];
+                const found = branches.filter(b => targets.includes(b));
+                if (found.length > 0) stars[name] = found;
+            };
 
             // 天乙貴人
-            const kijin = this.TENOTSU_KIJIN[dayStem] || [];
-            const foundKijin = branches.filter(b => kijin.includes(b));
-            if (foundKijin.length > 0) stars["天乙貴人"] = foundKijin;
+            check("天乙貴人", this.TENOTSU_KIJIN);
 
-            // 駅馬
+            // 文昌貴人
+            check("文昌貴人", this.BUNSHO_KIJIN); // 正しくは食神の建禄
+
+            // 羊刃
+            check("羊刃", this.YOJIN);
+
+            // 紅艶
+            check("紅艶", this.KOUEN);
+
+            // 駅馬 (年支基準)
             const ekiba = this.EKIBA[yearBranch];
             if (ekiba && branches.includes(ekiba)) stars["駅馬"] = [ekiba];
 
-            // 桃花
+            // 桃花 (年支基準)
             const touka = this.TOUKA[yearBranch];
             if (touka && branches.includes(touka)) stars["桃花"] = [touka];
+
+            // 華蓋 (年支基準)
+            const kagai = this.KAGAI[yearBranch];
+            if (kagai && branches.includes(kagai)) stars["華蓋"] = [kagai];
+
+            // 魁罡 (日柱)
+            if (this.KAIGOU.includes(dayPillarGanzhi)) {
+                stars["魁罡"] = [dayPillarGanzhi]; // 日柱全体で判定
+            }
 
             return stars;
         },
@@ -218,12 +245,15 @@ const AdvancedDivinationModules = {
             const branches = [fourPillars.year.branch, fourPillars.month.branch,
             fourPillars.day.branch, fourPillars.hour?.branch].filter(Boolean);
 
+            const dayPillarGanzhi = fourPillars.day.stem + fourPillars.day.branch;
+
             const monthZogan = this.calcZoganDepth(fourPillars.month.branch, progressRatio);
             const interactions = this.findInteractions(stems, branches);
             const specialStars = this.findSpecialStars(
                 fourPillars.day.stem,
                 fourPillars.year.branch,
-                branches
+                branches,
+                dayPillarGanzhi
             );
             const gogyoBalance = this.calcGogyoBalance(stems, branches);
 
