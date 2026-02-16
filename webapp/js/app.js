@@ -574,13 +574,17 @@ class DivinationAdapter {
     }
 
     static normalizeVedic(data) {
+        // バックエンドの新しい構造 (meta.ascendant) または直上の lagna から取得
+        const asc = this.val(data, ['meta'])?.ascendant;
+        const lagna = asc ? `${asc.sign} (${asc.degree}°)` : this.val(data, ['lagna']);
+
         return {
-            ayanamsa: this.val(data, ['ayanamsa']),
+            ayanamsa: this.val(data, ['ayanamsa', 'meta.ayanamsa']),
             nakshatra: this.val(data, ['nakshatra', 'moon_nakshatra', 'moonNakshatra']),
             nakshatraLord: this.val(data, ['nakshatra_lord', 'nakshatraLord']) || '-',
-            lagna: this.val(data, ['lagna']),
+            lagna: lagna,
             sunSign: this.val(data, ['sunSign']),
-            dashas: this.val(data, ['dashas', 'dasha', 'sequence'], [])
+            dashas: this.val(data, ['dashas', 'dasha', 'sequence', 'vimshottari_dasha'], [])
         };
     }
 
