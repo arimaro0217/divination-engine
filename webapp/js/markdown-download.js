@@ -57,7 +57,14 @@ function downloadResultsAsMarkdown() {
         return;
     }
 
-    const markdown = generateMarkdown(currentUserData, currentResultsData);
+    // チャート画像をキャプチャ
+    const charts = {
+        gogyo: getCanvasImageData('gogyo-radar-canvas'),
+        uchuban: getCanvasImageData('uchuban-canvas'),
+        direction: getCanvasImageData('direction-board-canvas')
+    };
+
+    const markdown = generateMarkdown(currentUserData, currentResultsData, charts);
 
     // Blobを作成
     const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
@@ -81,9 +88,28 @@ function downloadResultsAsMarkdown() {
 }
 
 /**
+ * キャンバスからDataURL形式で画像を取得
+ * @param {string} canvasId - キャンバス要素のID
+ * @returns {string|null} - DataURLまたはnull
+ */
+function getCanvasImageData(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+
+    try {
+        // 背景が透明な場合、白塗りするかそのままにするか
+        // 鑑定結果はダークモード風なのでそのままDataURLにする
+        return canvas.toDataURL('image/png');
+    } catch (e) {
+        console.error(`Canvas capture error (${canvasId}):`, e);
+        return null;
+    }
+}
+
+/**
  * マークダウンを生成
  */
-function generateMarkdown(userData, results) {
+function generateMarkdown(userData, results, charts = {}) {
     const { fullName, birthDate } = userData;
 
     let md = `# 占い鑑定結果\n\n`;
@@ -97,17 +123,17 @@ function generateMarkdown(userData, results) {
 
     // 四柱推命
     if (results.bazi) {
-        md += generateBaZiMarkdown(results.bazi);
+        md += generateBaZiMarkdown(results.bazi, charts.gogyo);
     }
 
     // 算命学
     if (results.sanmei) {
-        md += generateSanmeiMarkdown(results.sanmei);
+        md += generateSanmeiMarkdown(results.sanmei, charts.uchuban);
     }
 
     // 九星気学
     if (results.kyusei) {
-        md += generateKyuseiMarkdown(results.kyusei);
+        md += generateKyuseiMarkdown(results.kyusei, charts.direction);
     }
 
     // 紫微斗数
@@ -160,7 +186,7 @@ function generateMarkdown(userData, results) {
 
 // === マークダウン生成関数（各占術） ===
 
-function generateBaZiMarkdown(data) {
+function generateBaZiMarkdown(data, chartImage = null) {
     // API版: four_pillars, JS版: pillars
     const p = val(data, ['pillars', 'four_pillars'], null);
     if (!p) return `## 四柱推命\n\nデータがありません\n\n`;
@@ -277,6 +303,11 @@ function generateBaZiMarkdown(data) {
             md += `| 数値 | ${fmt(b['木'] || 0)} | ${fmt(b['火'] || 0)} | ${fmt(b['土'] || 0)} | ${fmt(b['金'] || 0)} | ${fmt(b['水'] || 0)} |\n\n`;
         }
 
+        if (chartImage) {
+            md += `#### 五行バランス・チャート\n\n`;
+            md += `![五行バランス](${chartImage})\n\n`;
+        }
+
         // 神殺
         if (data.advanced.specialStars && Object.keys(data.advanced.specialStars).length > 0) {
             md += `### 神殺・特殊星\n\n`;
@@ -310,7 +341,7 @@ function generateBaZiMarkdown(data) {
     return md;
 }
 
-function generateSanmeiMarkdown(data) {
+function generateSanmeiMarkdown(data, chartImage = null) {
     let md = `## 算命学\n\n`;
 
     const voidGroupName = val(data, ['voidGroupName', 'void_group_name'], '不明');
@@ -352,10 +383,15 @@ function generateSanmeiMarkdown(data) {
         md += `\n`;
     }
 
+    if (chartImage) {
+        md += `#### 宇宙盤チャート\n\n`;
+        md += `![宇宙盤](${chartImage})\n\n`;
+    }
+
     return md;
 }
 
-function generateKyuseiMarkdown(data) {
+function generateKyuseiMarkdown(data, chartImage = null) {
     let md = `## 九星気学\n\n`;
 
     md += `- **本命星**: ${val(data, ['yearStar', 'year_star'])}\n`;
@@ -366,6 +402,11 @@ function generateKyuseiMarkdown(data) {
         md += `- **傾斜宮**: ${inclination}\n`;
     }
     md += `\n`;
+
+    if (chartImage) {
+        md += `#### 方位盤チャート\n\n`;
+        md += `![方位盤](${chartImage})\n\n`;
+    }
 
     return md;
 }

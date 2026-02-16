@@ -372,11 +372,19 @@ class DivinationAdapter {
     }
 
     static normalizeSanmei(data) {
+        const advanced = data.advanced || {};
+
+        // APIから返される energy_values を五行バランスとしてマッピング
+        const energyValues = this.val(data, ['energy_values', 'energyValues']);
+        if (energyValues && Object.keys(energyValues).length > 0 && !advanced.gogyoBalance) {
+            advanced.gogyoBalance = energyValues;
+        }
+
         return {
             voidGroupName: this.val(data, ['void_group_name', 'voidGroupName']),
             mainStars: this.val(data, ['main_stars', 'mainStars'], {}),
             subStars: this.val(data, ['sub_stars', 'subStars'], {}),
-            advanced: data.advanced || {}
+            advanced: advanced
         };
     }
 
