@@ -578,8 +578,11 @@ class DivinationAdapter {
         const asc = this.val(data, ['meta'])?.ascendant;
         const lagna = asc ? `${asc.sign} (${asc.degree}°)` : this.val(data, ['lagna']);
 
+        // アヤナムサの取得（metaの下にある場合を考慮）
+        const ayanamsa = this.val(data, ['ayanamsa']) || data.meta?.ayanamsa;
+
         return {
-            ayanamsa: this.val(data, ['ayanamsa', 'meta.ayanamsa']),
+            ayanamsa: ayanamsa || 'LAHIRI',
             nakshatra: this.val(data, ['nakshatra', 'moon_nakshatra', 'moonNakshatra']),
             nakshatraLord: this.val(data, ['nakshatra_lord', 'nakshatraLord']) || '-',
             lagna: lagna,

@@ -270,7 +270,7 @@ function generateBaZiMarkdown(data) {
             md += `|---|---|---|---|---|---|\n`;
             const b = data.advanced.gogyoBalance;
             const fmt = (n) => (typeof n === 'number') ? n.toFixed(1) : n;
-            md += `| 数値 | ${fmt(b.wood || 0)} | ${fmt(b.fire || 0)} | ${fmt(b.earth || 0)} | ${fmt(b.metal || 0)} | ${fmt(b.water || 0)} |\n\n`;
+            md += `| 数値 | ${fmt(b['木'] || 0)} | ${fmt(b['火'] || 0)} | ${fmt(b['土'] || 0)} | ${fmt(b['金'] || 0)} | ${fmt(b['水'] || 0)} |\n\n`;
         }
 
         // 神殺
