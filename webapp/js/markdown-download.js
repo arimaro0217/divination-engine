@@ -208,9 +208,13 @@ function generateBaZiMarkdown(data) {
         md += `- **空亡**: ${voidBranches.join('・')}\n\n`;
     }
 
-    const monthInfo = val(data, ['monthInfo']); // API版にはないかも
+    const monthInfo = val(data, ['monthInfo', 'month_info']);
     if (monthInfo) {
-        md += `- **節入り**: ${val(monthInfo, 'jieName')}（節入り後${val(monthInfo, 'daysFromJieqi')}日目）\n\n`;
+        const jieName = val(monthInfo, ['jieName', 'jie_name']);
+        const daysFromJieqi = val(monthInfo, ['daysFromJieqi', 'days_from_jie']);
+        if (jieName && jieName !== '?') {
+            md += `- **節入り**: ${jieName}${daysFromJieqi !== '?' ? `（節入り後${typeof daysFromJieqi === 'number' ? daysFromJieqi.toFixed(1) : daysFromJieqi}日目）` : ''}\n\n`;
+        }
     }
 
     // 蔵干
@@ -310,7 +314,13 @@ function generateSanmeiMarkdown(data) {
     let md = `## 算命学\n\n`;
 
     const voidGroupName = val(data, ['voidGroupName', 'void_group_name'], '不明');
-    md += `- **天中殺**: ${voidGroupName}\n\n`;
+    md += `- **天中殺**: ${voidGroupName}\n`;
+
+    const voidBranches = val(data, ['voidBranches', 'void_branches'], []);
+    if (Array.isArray(voidBranches) && voidBranches.length > 0) {
+        md += `- **天中殺支**: ${voidBranches.join('・')}\n`;
+    }
+    md += `\n`;
 
     const mainStars = val(data, ['mainStars', 'main_stars']);
     if (mainStars && Object.keys(mainStars).length > 0) {

@@ -282,13 +282,16 @@ class MayanCalculator:
         期間内の閏年2月29日の数をカウント
         """
         count = 0
-        year = start.year
+        # タイムゾーンの有無を統一して比較
+        start_naive = start.replace(tzinfo=None)
+        end_naive = end.replace(tzinfo=None)
+        year = start_naive.year
         
-        while year <= end.year:
+        while year <= end_naive.year:
             # 閏年かどうか
             if self._is_leap_year(year):
                 leap_day = datetime(year, 2, 29)
-                if start <= leap_day < end:
+                if start_naive <= leap_day < end_naive:
                     count += 1
             year += 1
         

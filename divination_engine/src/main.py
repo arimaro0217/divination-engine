@@ -9,7 +9,12 @@ from zoneinfo import ZoneInfo
 import json
 
 from .models.input_schema import UserProfile, DivinationRequest, DivinationType
-from .models.output_schema import DivinationResult
+from .models.output_schema import (
+    DivinationResult, BaZiResult, SanmeiResult, 
+    KyuseiResult, ZiWeiResult, SukuyouResult, 
+    WesternResult, VedicResult, MayanResult, 
+    NumerologyResult, SeimeiResult, SexagenaryResult, KabbalahResult
+)
 from .core.time_manager import TimeManager
 from .core.ephemeris import AstroEngine
 from .core.calendar_cn import ChineseCalendar
@@ -86,17 +91,19 @@ class DivinationController:
                 sanmei = SanmeiCalculator(user.birth_datetime, user.latitude or 35.68, user.longitude or 139.76)
                 analysis = sanmei.get_full_analysis()
                 
-                # 結果のマッピング（簡易実装）
-                # 注意: SanmeiResultの定義とget_full_analysisの戻り値構造が異なるため
-                # ここでは最低限の情報を設定し、詳細は別途扱うかスキーマを合わせる必要がある
-                result.sanmei = SanmeiResult(
-                    four_pillars=None,  # マッピングが必要だが省略
-                    void_branches=analysis["tenchusatsu"]["branches"],
-                    void_group_name=analysis["tenchusatsu"]["type"],
-                    energy_values=analysis["energy_score"]
-                )
+                # 結果の詳細なマッピング
+                jintai = analysis.get("jintai_seizu", [])
                 
-                # 追加データとして保持したい場合は拡張が必要
+                result.sanmei = SanmeiResult(
+                    four_pillars=self.bazi._convert_pillars_to_schema(sanmei.four_pillars),
+                    void_branches=analysis.get("tenchusatsu", {}).get("branches", []),
+                    void_group_name=analysis.get("tenchusatsu", {}).get("type", "不明"),
+                    main_stars={s["position"]: s["star_name"] for s in jintai if s["star_type"] == "main_star"},
+                    sub_stars={s["position"]: s["star_name"] for s in jintai if s["star_type"] == "sub_star"},
+                    body_chart={s["position"]: s["star_name"] for s in jintai},
+                    energy_values=analysis.get("energy_score", {}),
+                    phases=analysis.get("interactions", {})
+                )
             except Exception as e:
                 print(f"Sanmei calculation error: {e}")
                 result.sanmei = SanmeiResult(
@@ -134,30 +141,32 @@ class DivinationController:
         
         # 数秘術・カバラ
         if DivinationType.NUMEROLOGY in types:
-            # 名前処理（カナ → ローマ字変換は高度APIが自動で行う）
-            name_input = user.name_kana if hasattr(user, 'name_kana') else user.name_kanji
-            
-            # 高度API使用: generate_full_report
-            full_report = self.numerology.generate_full_report(
-                name_input=name_input,
-                birth_date=user.birth_datetime,
-                system='pythagorean',  # または 'chaldean'
-                latitude=user.latitude or 35.68,
-                longitude=user.longitude or 139.76
-            )
-            
-            # Resultモデルへの変換が必要だが、ここではAPI仕様に合わせて別途対応
-            # 一旦、既存の簡易NumeryResultに変換して格納
-            result.numerology = NumerologyResult(
-                life_path=full_report["core_numbers"]["life_path"]["number"],
-                birthday_number=full_report["core_numbers"]["birthday"]["number"],
-                expression_number=full_report["core_numbers"]["expression"]["number"],
-                soul_urge=full_report["core_numbers"]["soul_urge"]["number"],
-                personality_number=full_report["core_numbers"]["personality"]["number"]
-            )
-            
-            # 高度な結果は別途渡すか、スキーマを拡張する
-            # result.numerology_advanced = full_report
+            try:
+                # 名前処理（カナ → ローマ字変換は高度APIが自動で行う）
+                name_input = user.name_kana if hasattr(user, 'name_kana') and user.name_kana else user.name_kanji
+                
+                # 高度API使用: generate_full_report
+                full_report = self.numerology.generate_full_report(
+                    name_input=name_input,
+                    birth_date=user.birth_datetime,
+                    system='pythagorean',
+                    latitude=user.latitude or 35.68,
+                    longitude=user.longitude or 139.76
+                )
+                
+                # スキーマに合わせたマッピング
+                core = full_report["core_numbers"]
+                result.numerology = NumerologyResult(
+                    life_path=core["life_path"]["number"],
+                    birthday_number=core["birthday"]["number"],
+                    expression_number=core["destiny"]["number"], # APIでは destiny と呼称
+                    soul_urge=core["soul_urge"]["number"],
+                    personality_number=core["personality"]["number"],
+                    life_path_meaning=core["life_path"].get("meaning", {}).get("description", ""),
+                    birthday_meaning=core["birthday"].get("meaning", [])[0] if core["birthday"].get("meaning") else ""
+                )
+            except Exception as e:
+                print(f"Numerology calculation error: {e}")
         
         if DivinationType.KABBALAH in types:
             name_roman = ""

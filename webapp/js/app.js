@@ -358,7 +358,7 @@ class DivinationAdapter {
             tenGods: this.val(data, ['ten_gods', 'tenGods'], {}),
             twelveStages: this.val(data, ['twelve_stages', 'twelveStages'], {}),
             hiddenStems,
-            monthInfo: this.val(data, ['monthInfo']),
+            monthInfo: this.val(data, ['month_info', 'monthInfo']),
             advanced: data.advanced || {}
         };
     }

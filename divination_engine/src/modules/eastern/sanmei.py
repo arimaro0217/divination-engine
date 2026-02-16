@@ -500,9 +500,7 @@ class SanmeiCalculator(SexagenaryCalculator):
         
         # 中国暦の計算
         self.calendar = ChineseCalendar()
-        self.four_pillars = self.calendar.get_four_pillars(
-            birth_datetime, latitude, longitude
-        )
+        self.four_pillars = self.calendar.calc_four_pillars(birth_datetime)
     
     def get_tenchusatsu_info(self) -> Dict[str, any]:
         """

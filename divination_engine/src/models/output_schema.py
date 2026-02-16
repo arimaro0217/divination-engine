@@ -43,6 +43,8 @@ class BaZiResult(BaseDivinationResult):
     day_master: str = Field(..., description="日主（日干）")
     ten_gods: Dict[str, str] = Field(default_factory=dict, description="通変星")
     twelve_stages: Dict[str, str] = Field(default_factory=dict, description="十二運")
+    hidden_stems: Optional[Dict[str, Dict[str, Any]]] = Field(None, description="蔵干詳細")
+    month_info: Optional[Dict[str, Any]] = Field(None, description="節入り情報")
 
 
 class SanmeiResult(BaseDivinationResult):

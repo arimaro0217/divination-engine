@@ -7,7 +7,9 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass
 
 from .sexagenary import SexagenaryCalculator
+from .destiny_precise import PrecisionBaZiCalculator
 from ...core.calendar_cn import ChineseCalendar, FourPillars, Pillar
+from ...core.time_manager import TimeManager
 from ...models.output_schema import BaZiResult, Pillar as PillarSchema
 
 
@@ -94,6 +96,7 @@ class BaZiCalculator(SexagenaryCalculator):
     
     def __init__(self):
         super().__init__()
+        self.precise_calc = PrecisionBaZiCalculator()
     
     def calculate(self, birth_dt: datetime) -> BaZiResult:
         """
@@ -107,6 +110,7 @@ class BaZiCalculator(SexagenaryCalculator):
         """
         # 四柱を計算（子の刻は00:00-01:00）
         four_pillars = self.calendar.calc_four_pillars(birth_dt, use_early_rat=False)
+        jd = TimeManager.to_julian_day(birth_dt)
         
         # 日主（日干）
         day_master = four_pillars.day.stem
@@ -120,12 +124,59 @@ class BaZiCalculator(SexagenaryCalculator):
         # 十二運を計算
         twelve_stages = self._calc_twelve_stages(four_pillars, day_master)
         
+        # --- 精密計算（蔵干・節入り） ---
+        hidden_stems = {}
+        month_info = {}
+        
+        try:
+            # 節入り情報の取得
+            month_num, jie_term = self.calendar.get_previous_jieqi(jd)
+            # 次の節入り
+            terms = self.calendar.get_solar_terms_for_year(jie_term.datetime_jst.year)
+            next_jie = None
+            for i, t in enumerate(terms):
+                if t.name == jie_term.name:
+                    # 次の節気（中気を飛ばす必要がある場合があるが get_solar_terms_for_year は全24節気）
+                    # 節気は1つおき
+                    if i + 2 < len(terms):
+                        next_jie = terms[i+2]
+                    break
+            
+            if not next_jie:
+                # 翌年の節気
+                next_terms = self.calendar.get_solar_terms_for_year(jie_term.datetime_jst.year + 1)
+                next_jie = [t for t in next_terms if t.name in [j[0] for j in self.calendar.JIEQI_INDICES]][0] # 簡易的
+
+            # 蔵干の計算
+            for pillar_name, pillar in [("year", four_pillars.year), ("month", four_pillars.month), 
+                                      ("day", four_pillars.day), ("hour", four_pillars.hour)]:
+                zogan = self.precise_calc.calculate_zogan_ratio(
+                    jd, jie_term.jd, next_jie.jd, pillar.branch_index
+                )
+                hidden_stems[pillar_name] = {
+                    "main_stem": zogan.primary_stem,
+                    "all_stems": [s[0] for s in zogan.all_stems],
+                    "ratios": {s[0]: s[1] for s in zogan.all_stems},
+                    "depth": zogan.depth_ratio
+                }
+            
+            month_info = {
+                "jie_name": jie_term.name,
+                "jie_time": jie_term.datetime_jst.isoformat(),
+                "days_from_jie": jd - jie_term.jd,
+                "elapsed_ratio": (jd - jie_term.jd) / (next_jie.jd - jie_term.jd)
+            }
+        except Exception as e:
+            print(f"Error in BaZi precise calculation: {e}")
+
         return BaZiResult(
             four_pillars=self._convert_pillars_to_schema(four_pillars),
             void_branches=void_branches,
             day_master=day_master,
             ten_gods=ten_gods,
-            twelve_stages=twelve_stages
+            twelve_stages=twelve_stages,
+            hidden_stems=hidden_stems,
+            month_info=month_info
         )
     
     def _convert_pillars_to_schema(self, fp: FourPillars):

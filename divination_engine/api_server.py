@@ -215,31 +215,8 @@ def calculate_bazi(request: BaZiRequest):
         if not result.bazi:
             raise HTTPException(status_code=500, detail="計算エラー")
         
-        bazi = result.bazi
-        response = {
-            "four_pillars": {
-                "year": {
-                    "stem": bazi.four_pillars.year.heavenly_stem,
-                    "branch": bazi.four_pillars.year.earthly_branch
-                },
-                "month": {
-                    "stem": bazi.four_pillars.month.heavenly_stem,
-                    "branch": bazi.four_pillars.month.earthly_branch
-                },
-                "day": {
-                    "stem": bazi.four_pillars.day.heavenly_stem,
-                    "branch": bazi.four_pillars.day.earthly_branch
-                },
-                "hour": {
-                    "stem": bazi.four_pillars.hour.heavenly_stem,
-                    "branch": bazi.four_pillars.hour.earthly_branch
-                }
-            },
-            "day_master": bazi.day_master.heavenly_stem,
-            "void_branches": bazi.void_branches
-        }
-        
-        return {"success": True, "data": response}
+        # Pydanticモデルから辞書に変換して返却
+        return {"success": True, "data": result.bazi.model_dump(exclude_none=True)}
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
