@@ -537,14 +537,24 @@ const DivinationModules = {
         // 天府星系の紫微星からの相対位置
         TIANFU_MAP: { 0: 4, 1: 3, 2: 2, 3: 1, 4: 0, 5: 11, 6: 10, 7: 9, 8: 8, 9: 7, 10: 6, 11: 5 },
 
-        calculate(date) {
+        // 命主（命宮の地支による）
+        LIFE_MASTERS: ['貪狼', '巨門', '禄存', '文曲', '廉貞', '武曲', '破軍', '武曲', '廉貞', '文曲', '禄存', '巨門'],
+        // 身主（生年の地支による）
+        BODY_MASTERS: ['火星', '天相', '天梁', '天同', '文昌', '天機', '火星', '天相', '天梁', '天同', '文昌', '天機'],
+
+        calculate(date, gender = 'male') {
             const lunarDate = ChineseCalendar.toLunarDate(date);
             const hourBranch = Math.floor((date.getHours() + 1) / 2) % 12;
             const yearStemIdx = ChineseCalendar.STEM_INDICES[ChineseCalendar.calcFourPillars(date).year.stem];
+            const yearBranchIdx = ChineseCalendar.BRANCH_INDICES[ChineseCalendar.calcFourPillars(date).year.branch];
 
             // 1. 命宮位置
             const mingIdx = (2 + lunarDate.month - 1 - hourBranch + 12) % 12;
             const bodyIdx = (2 + lunarDate.month - 1 + hourBranch) % 12;
+
+            // 命主・身主
+            const lifeMaster = this.LIFE_MASTERS[mingIdx];
+            const bodyMaster = this.BODY_MASTERS[yearBranchIdx] || '不明';
 
             // 2. 命宮の天干（五行局計算用）
             const yinStemBase = [2, 4, 6, 8, 0, 2, 4, 6, 8, 0][yearStemIdx];
@@ -647,16 +657,25 @@ const DivinationModules = {
                 palaces.push({
                     name: this.PALACES[i],
                     branch: branch,
-                    stars: combinedStars
+                    stars: combinedStars,
+                    is_life_palace: i === 0, // 命宮
+                    is_body_palace: this.PALACES[i] === this.PALACES[(mingIdx - bodyIdx + 12) % 12] // 身宮判定
                 });
             }
 
             return {
                 type: '紫微斗数',
-                lunarDate: `${lunarDate.year}年${lunarDate.month}月${lunarDate.day}日`,
+                lunarDate: `旧暦${lunarDate.year}年${lunarDate.month}月${lunarDate.day}日`,
                 bureau: bureauName,
-                mingPalace: ChineseCalendar.BRANCHES[mingIdx],
-                bodyPalace: ChineseCalendar.BRANCHES[bodyIdx],
+                mingPalace: ChineseCalendar.BRANCHES[mingIdx] + '宮',
+                bodyPalace: ChineseCalendar.BRANCHES[bodyIdx] + '宮',
+                ziweiPosition: ChineseCalendar.BRANCHES[ziweiIdx] + '宮',
+                hourBranch: ChineseCalendar.BRANCHES[hourBranch],
+                lifeMaster,
+                bodyMaster,
+                lifeMaster,
+                bodyMaster,
+                gender: (yinStemBase % 4 === 2 || yinStemBase % 4 === 6) ? (gender === 'male' ? '陽男' : '陽女') : (gender === 'male' ? '陰男' : '陰女'),
                 palaces: palaces
             };
         }
@@ -723,6 +742,7 @@ const DivinationModules = {
                 mansionEn: this.MANSIONS_EN[mansionIndex],
                 mansionNumber: mansionIndex + 1,
                 dayElement,
+                element: dayElement,
                 moonLongitude: moonLon.toFixed(2),
                 dailyCycle: dailyCycle + 1,
                 dailyMansion: this.MANSIONS[dailyCycle]
@@ -1338,272 +1358,9 @@ const DivinationModules = {
         }
     },
 
-    // ===== 紫微斗数 =====
-    ZiWei: {
-        PALACES: ['命宮', '兄弟宮', '夫妻宮', '子女宮', '財帛宮', '疾厄宮',
-            '遷移宮', '奴僕宮', '官禄宮', '田宅宮', '福徳宮', '父母宮'],
-        MAIN_STARS: ['紫微', '天機', '太陽', '武曲', '天同', '廉貞', '天府',
-            '太陰', '貪狼', '巨門', '天相', '天梁', '七殺', '破軍'],
-        JU_NAMES: { 2: '水二局', 3: '木三局', 4: '金四局', 5: '土五局', 6: '火六局' },
-        BRANCHES: ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'],
-        STEMS: ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'],
 
-        // 簡易旧暦変換（精密版はPython使用）
-        getLunarApprox(date) {
-            // 簡易的な旧暦近似
-            const year = date.getFullYear();
-            const month = date.getMonth() + 1;
-            const day = date.getDate();
-            // 約29.5日周期で旧暦日を近似
-            const lunarDay = ((day - 1) % 30) + 1;
-            const lunarMonth = month; // 簡易版では同じ
-            return { lunarYear: year, lunarMonth, lunarDay };
-        },
 
-        calculate(date) {
-            const lunar = this.getLunarApprox(date);
-            const hour = date.getHours();
-            const hourBranch = Math.floor((hour + 1) / 2) % 12;
 
-            // 命宮を計算（月と時辰から）
-            const lifePalace = (lunar.lunarMonth + hourBranch + 1) % 12;
-
-            // 五行局を簡易計算
-            const yearStem = (date.getFullYear() - 4) % 10;
-            const bureau = [2, 6, 5, 4, 3][(yearStem % 5)];
-
-            // 紫微星の位置
-            const ziweiPos = (lunar.lunarDay + bureau - 1) % 12;
-
-            // 十二宮配置
-            const palaces = this.PALACES.map((name, i) => ({
-                name,
-                branch: this.BRANCHES[(lifePalace - i + 12) % 12],
-                stars: []
-            }));
-
-            // 主星配置（簡易版）
-            palaces[ziweiPos].stars.push('紫微');
-            palaces[(ziweiPos + 4) % 12].stars.push('天府');
-
-            return {
-                type: '紫微斗数',
-                lunarDate: `旧暦${lunar.lunarMonth}月${lunar.lunarDay}日`,
-                hourBranch: this.BRANCHES[hourBranch],
-                lifePalace: this.BRANCHES[lifePalace],
-                bureau: this.JU_NAMES[bureau] || '金四局',
-                ziweiPosition: this.BRANCHES[ziweiPos],
-                palaces
-            };
-        }
-    },
-
-    // ===== 宿曜占星術 =====
-    Sukuyou: {
-        MANSIONS: [
-            '昴宿', '畢宿', '觜宿', '参宿', '井宿', '鬼宿', '柳宿', '星宿', '張宿',
-            '翼宿', '軫宿', '角宿', '亢宿', '氐宿', '房宿', '心宿', '尾宿', '箕宿',
-            '斗宿', '女宿', '虚宿', '危宿', '室宿', '壁宿', '奎宿', '婁宿', '胃宿'
-        ],
-        WEEKDAYS: ['日', '月', '火', '水', '木', '金', '土'],
-        PERSONALITY_GROUPS: ['軽躁宿', '猛悪宿', '和善宿', '急速宿', '安重宿'],
-        MONTH_START: { 1: 22, 2: 24, 3: 26, 4: 1, 5: 3, 6: 5, 7: 7, 8: 10, 9: 12, 10: 14, 11: 17, 12: 19 },
-        COMPATIBILITY: {
-            0: '命', 1: '業', 2: '胎', 3: '栄', 4: '親', 5: '友', 6: '衰',
-            7: '安', 8: '危', 9: '成', 10: '壊', 11: '友', 12: '親', 13: '栄',
-            14: '栄', 15: '親', 16: '友', 17: '壊', 18: '成', 19: '危', 20: '安',
-            21: '衰', 22: '友', 23: '親', 24: '栄', 25: '胎', 26: '業'
-        },
-
-        getLunarApprox(date) {
-            const month = date.getMonth() + 1;
-            const day = date.getDate();
-            return { month, day };
-        },
-
-        calculate(date) {
-            const lunar = this.getLunarApprox(date);
-            const startMansion = this.MONTH_START[lunar.month] || 22;
-            const mansionIndex = (startMansion + lunar.day - 1) % 27;
-
-            const weekday = this.WEEKDAYS[mansionIndex % 7];
-            const group = this.PERSONALITY_GROUPS[mansionIndex % 5];
-
-            // 相性マンダラ
-            const mandala = this.MANSIONS.map((name, i) => ({
-                shuku: name,
-                relation: this.COMPATIBILITY[(i - mansionIndex + 27) % 27] || '友',
-                angle: (360 / 27) * i
-            }));
-
-            return {
-                type: '宿曜占星術',
-                lunarDate: `旧暦${lunar.month}月${lunar.day}日`,
-                mansion: this.MANSIONS[mansionIndex],
-                mansionIndex,
-                weekday: `${weekday}曜`,
-                group,
-                mandala
-            };
-        }
-    },
-
-    // ===== 西洋占星術 =====
-    Western: {
-        SIGNS: ['牡羊座', '牡牛座', '双子座', '蟹座', '獅子座', '乙女座',
-            '天秤座', '蠍座', '射手座', '山羊座', '水瓶座', '魚座'],
-        SIGNS_EN: ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
-            'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'],
-        PLANETS: ['太陽', '月', '水星', '金星', '火星', '木星', '土星', '天王星', '海王星', '冥王星'],
-        ASPECTS: { 0: '合', 60: '六分', 90: '四角', 120: '三角', 180: '衝' },
-
-        // 太陽星座を計算
-        getSunSign(month, day) {
-            const dates = [20, 19, 20, 20, 21, 21, 22, 23, 23, 23, 22, 21];
-            if (day >= dates[month - 1]) return month % 12;
-            return (month - 2 + 12) % 12;
-        },
-
-        // 月星座を近似計算
-        getMoonSign(date) {
-            const jd = AstroCalc.dateToJD(date);
-            // 月は約27.3日で1周
-            const moonCycle = (jd - 2451545) / 27.321582;
-            const index = Math.floor((moonCycle * 12) % 12);
-            // 負のインデックスを正の値に変換
-            return (index + 12) % 12;
-        },
-
-        // アセンダントを近似計算
-        getAscendant(date) {
-            const hours = date.getHours() + date.getMinutes() / 60;
-            // 約2時間で1サイン
-            const signOffset = Math.floor(hours / 2);
-            const sunSign = this.getSunSign(date.getMonth() + 1, date.getDate());
-            return (sunSign + signOffset) % 12;
-        },
-
-        calculate(date, lat = 35.68, lon = 139.76) {
-            const month = date.getMonth() + 1;
-            const day = date.getDate();
-
-            const sunSign = this.getSunSign(month, day);
-            const moonSign = this.getMoonSign(date);
-            const ascendant = this.getAscendant(date);
-
-            // 惑星配置（簡易版）
-            const planets = [
-                { name: '太陽', sign: this.SIGNS[sunSign], signEn: this.SIGNS_EN[sunSign] },
-                { name: '月', sign: this.SIGNS[moonSign], signEn: this.SIGNS_EN[moonSign] },
-                { name: 'ASC', sign: this.SIGNS[ascendant], signEn: this.SIGNS_EN[ascendant] }
-            ];
-
-            // ハウス
-            const houses = this.SIGNS.map((_, i) => ({
-                house: i + 1,
-                sign: this.SIGNS[(ascendant + i) % 12]
-            }));
-
-            return {
-                type: '西洋占星術',
-                sunSign: this.SIGNS[sunSign],
-                moonSign: this.SIGNS[moonSign],
-                ascendant: this.SIGNS[ascendant],
-                planets,
-                houses
-            };
-        }
-    },
-
-    // ===== インド占星術（ジョーティシュ）=====
-    Vedic: {
-        RASHIS: ['牡羊座 (Mesha)', '牡牛座 (Vrishabha)', '双子座 (Mithuna)', '蟹座 (Karka)',
-            '獅子座 (Simha)', '乙女座 (Kanya)', '天秤座 (Tula)', '蠍座 (Vrishchika)',
-            '射手座 (Dhanu)', '山羊座 (Makara)', '水瓶座 (Kumbha)', '魚座 (Meena)'],
-        NAKSHATRAS: [
-            'Ashwini', 'Bharani', 'Krittika', 'Rohini', 'Mrigashira', 'Ardra',
-            'Punarvasu', 'Pushya', 'Ashlesha', 'Magha', 'Purva Phalguni', 'Uttara Phalguni',
-            'Hasta', 'Chitra', 'Swati', 'Vishakha', 'Anuradha', 'Jyeshtha',
-            'Mula', 'Purva Ashadha', 'Uttara Ashadha', 'Shravana', 'Dhanishtha',
-            'Shatabhisha', 'Purva Bhadrapada', 'Uttara Bhadrapada', 'Revati'
-        ],
-        DASHA_ORDER: ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'],
-        DASHA_YEARS: {
-            'Ketu': 7, 'Venus': 20, 'Sun': 6, 'Moon': 10, 'Mars': 7,
-            'Rahu': 18, 'Jupiter': 16, 'Saturn': 19, 'Mercury': 17
-        },
-        AYANAMSA: 24.0, // ラヒリ・アヤナムサ（2024年頃）
-
-        // サイデリアル位置を計算
-        getSiderealSign(tropicalSign) {
-            // トロピカル位置からアヤナムサを引く
-            const offset = Math.floor(this.AYANAMSA / 30);
-            return (tropicalSign - offset + 12) % 12;
-        },
-
-        // 月のナクシャトラ
-        getMoonNakshatra(date) {
-            const jd = AstroCalc.dateToJD(date);
-            const moonPos = ((jd - 2451545) / 27.321582 * 360) % 360;
-            // アヤナムサを適用
-            const siderealMoonPos = (moonPos - this.AYANAMSA + 360) % 360;
-            return Math.floor(siderealMoonPos / (360 / 27));
-        },
-
-        // ダシャー計算
-        calculateDasha(nakshatraIndex, birthYear) {
-            const lords = ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'];
-            const startLord = lords[nakshatraIndex % 9];
-            const startIdx = this.DASHA_ORDER.indexOf(startLord);
-
-            const dashas = [];
-            let currentYear = birthYear;
-            for (let i = 0; i < 9; i++) {
-                const idx = (startIdx + i) % 9;
-                const lord = this.DASHA_ORDER[idx];
-                const years = this.DASHA_YEARS[lord];
-                dashas.push({
-                    lord,
-                    start: currentYear,
-                    end: currentYear + years,
-                    years
-                });
-                currentYear += years;
-            }
-            return dashas;
-        },
-
-        calculate(date, lat = 35.68, lon = 139.76) {
-            const month = date.getMonth() + 1;
-            const day = date.getDate();
-
-            // トロピカル太陽サイン
-            const tropicalSun = DivinationModules.Western.getSunSign(month, day);
-            const siderealSun = this.getSiderealSign(tropicalSun);
-
-            // 月のナクシャトラ
-            const moonNakshatra = this.getMoonNakshatra(date);
-            const pada = (moonNakshatra % 4) + 1;
-
-            // ラグナ（簡易計算）
-            const hours = date.getHours();
-            const lagnaOffset = Math.floor(hours / 2);
-            const lagna = (siderealSun + lagnaOffset) % 12;
-
-            // ダシャー
-            const dashas = this.calculateDasha(moonNakshatra, date.getFullYear());
-
-            return {
-                type: 'インド占星術',
-                ayanamsa: `Lahiri (${this.AYANAMSA}°)`,
-                sunSign: this.RASHIS[siderealSun],
-                lagna: this.RASHIS[lagna],
-                moonNakshatra: this.NAKSHATRAS[moonNakshatra],
-                nakshatraPada: pada,
-                dashas: dashas.slice(0, 5) // 最初の5期間
-            };
-        }
-    }
 };
 
 // グローバルに公開

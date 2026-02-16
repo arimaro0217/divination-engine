@@ -49,8 +49,8 @@ class SukuyouEngine:
             # 月の位置から宿を計算（経度法）
             mansion_num, mansion_name = self._calc_mansion_from_moon(jd)
             
-            # 宿の属性を取得
-            element = sk.MANSION_BASE_TYPE[mansion_num % 7]
+            # 宿の属性を取得（七曜）
+            element = sk.MANSION_WEEKDAY[mansion_num % 7]
             
             # 七曜を取得
             weekday = sk.MANSION_WEEKDAY[mansion_num]

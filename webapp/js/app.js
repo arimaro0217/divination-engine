@@ -394,6 +394,7 @@ class DivinationAdapter {
         let palaces = [];
         const srcPalaces = this.val(data, ['palaces']);
         const srcMainStars = this.val(data, ['main_stars']);
+        const basicInfo = this.val(data, ['basic_info'], {});
 
         if (srcPalaces && Array.isArray(srcPalaces)) {
             palaces = srcPalaces.map(p => {
@@ -427,7 +428,10 @@ class DivinationAdapter {
                 return {
                     name: p.name || p.palace_type || '?',
                     branch: p.branch || '',
-                    stars: (p.stars && p.stars[0] && p.stars[0].type) ? p.stars : allStars
+                    stars: (p.stars && p.stars[0] && p.stars[0].type) ? p.stars : allStars,
+                    decade_luck: p.decade_luck, // 大限
+                    is_life_palace: p.is_life_palace,
+                    is_body_palace: p.is_body_palace
                 };
             });
         } else if (srcMainStars) {
@@ -444,14 +448,70 @@ class DivinationAdapter {
             });
         }
 
+        // グリッドレイアウトの補完
+        let gridLayout = this.val(data, ['grid_layout']);
+        if (!gridLayout && palaces.length > 0) {
+            // グリッドがない場合（JS版など）、地支に基づいて自動生成
+            // 巳 午 未 申
+            // 辰        酉
+            // 卯        戌
+            // 寅 丑 子 亥
+            const GRID_MAP = [
+                ['巳', '午', '未', '申'],
+                ['辰', null, null, '酉'],
+                ['卯', null, null, '戌'],
+                ['寅', '丑', '子', '亥']
+            ];
+
+            gridLayout = [];
+            for (let r = 0; r < 4; r++) {
+                const row = [];
+                for (let c = 0; c < 4; c++) {
+                    const targetBranch = GRID_MAP[r][c];
+                    if (targetBranch) {
+                        const p = palaces.find(x => x.branch === targetBranch);
+                        row.push(p || null);
+                    } else {
+                        row.push(null);
+                    }
+                }
+                gridLayout.push(row);
+            }
+        } else if (gridLayout) {
+            // グリッド内の星情報は名前文字列だけなので、詳細情報（輝度など）をpalacesから補う
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 4; c++) {
+                    const cell = gridLayout[r][c];
+                    if (!cell) continue;
+
+                    // 対応する宮データを検索
+                    const palaceData = palaces.find(p => p.name === cell.name);
+                    if (palaceData) {
+                        cell.stars = palaceData.stars;
+                        cell.decade_luck = palaceData.decade_luck;
+                        cell.is_life_palace = palaceData.is_life_palace;
+                        cell.is_body_palace = palaceData.is_body_palace;
+                    }
+                }
+            }
+        }
+
+        const mp = this.val(basicInfo, ['life_palace_branch']) || this.val(data, ['ming_palace', 'mingPalace', 'life_palace', 'lifePalace']);
+        const bp = this.val(basicInfo, ['body_palace_branch']) || this.val(data, ['body_palace', 'bodyPalace']);
+        const zp = this.val(basicInfo, ['ziwei_position']) || this.val(data, ['ziwei_position', 'ziweiPosition']);
+
         return {
-            lunarDate: this.val(data, ['lunar_date', 'lunarDate']),
-            mingPalace: this.val(data, ['ming_palace', 'mingPalace', 'life_palace', 'lifePalace']),
-            bodyPalace: this.val(data, ['body_palace', 'bodyPalace']),
-            ziweiPosition: this.val(data, ['ziwei_position', 'ziweiPosition']),
-            bureau: this.val(data, ['bureau']),
-            hourBranch: this.val(data, ['hour_branch', 'hourBranch']),
-            palaces
+            lunarDate: this.val(basicInfo, ['lunar_date']) || this.val(data, ['lunar_date', 'lunarDate']),
+            mingPalace: mp ? (mp.endsWith('宮') ? mp : mp + '宮') : '?',
+            bodyPalace: bp ? (bp.endsWith('宮') ? bp : bp + '宮') : '?',
+            ziweiPosition: zp ? (zp.endsWith('宮') ? zp : zp + '宮') : '?',
+            bureau: this.val(basicInfo, ['bureau_name']) || this.val(data, ['bureau']),
+            hourBranch: this.val(basicInfo, ['hour_branch']) || this.val(data, ['hour_branch', 'hourBranch']),
+            lifeMaster: this.val(basicInfo, ['life_master']) || this.val(data, ['lifeMaster']),
+            bodyMaster: this.val(basicInfo, ['body_master']) || this.val(data, ['bodyMaster']),
+            gender: this.val(basicInfo, ['gender']) || this.val(data, ['gender']),
+            palaces,
+            gridLayout
         };
     }
 
@@ -474,7 +534,7 @@ class DivinationAdapter {
         const planets = srcPlanets.map(p => ({
             name: this.val(p, ['planet', 'name']),
             sign: this.val(p, ['sign', 'signEn']),
-            degree: this.val(p, ['degree', 'degree_in_sign', 'longitude']),
+            degree: this.val(p, ['degree', 'degree_in_sign', 'longitude']), // might be number or undefined
             retrograde: this.val(p, ['retrograde'], false)
         }));
 
@@ -517,7 +577,7 @@ class DivinationAdapter {
         return {
             ayanamsa: this.val(data, ['ayanamsa']),
             nakshatra: this.val(data, ['nakshatra', 'moon_nakshatra', 'moonNakshatra']),
-            nakshatraLord: this.val(data, ['nakshatra_lord', 'nakshatraLord']),
+            nakshatraLord: this.val(data, ['nakshatra_lord', 'nakshatraLord']) || '-',
             lagna: this.val(data, ['lagna']),
             sunSign: this.val(data, ['sunSign']),
             dashas: this.val(data, ['dashas', 'dasha', 'sequence'], [])
@@ -726,22 +786,28 @@ class DivinationRenderer {
     }
 
     static renderZiWei(data) {
+        // グリッドレイアウトがあればそれを使用、なければリスト表示
+        if (data.gridLayout) {
+            return this.renderZiWeiGrid(data);
+        }
+
+        // 旧リスト表示（バックアップ）
         const palacesHtml = data.palaces.map(p => {
             const starHtml = p.stars.map(s => {
-                let style = '';
-                if (s.type === 'major') style = 'color:#e74c3c; font-weight:bold;'; // 赤
-                else if (s.type === 'minor') style = 'color:#27ae60; font-size:0.9em;'; // 緑
-                else if (s.type === 'bad') style = 'color:#7f8c8d; font-size:0.85em;'; // グレー
+                let className = '';
+                if (s.type === 'major') className = 'ziwei-star-major';
+                else if (s.type === 'minor') className = 'ziwei-star-minor';
+                else if (s.type === 'bad') className = 'ziwei-star-bad';
 
-                const b = s.brightness ? `<span style="font-size:0.8em; color:#888;">${s.brightness}</span>` : '';
-                return `<div style="${style}">${s.name}${b}</div>`;
+                const b = s.brightness ? `<span class="ziwei-brightness">(${s.brightness})</span>` : '';
+                return `<div class="${className}">${s.name}${b}</div>`;
             }).join('');
 
             return `
-            <div style="border:1px solid #ddd; padding:4px; text-align:center;">
-                <div style="font-weight:bold;">${p.name}</div>
-                <div>${p.branch}</div>
-                <div style="margin-top:4px;">${starHtml}</div>
+            <div class="ziwei-palace-list-item">
+                <div class="ziwei-palace-name">${p.name}</div>
+                <div class="ziwei-palace-branch">${p.branch}</div>
+                <div class="ziwei-stars-container">${starHtml}</div>
             </div>`;
         }).join('');
 
@@ -753,14 +819,92 @@ class DivinationRenderer {
                 </div>
                 <div class="result-card-body">
                     <div class="important-box">
-                        <p><span class="highlight">★ 命宮</span>：${data.mingPalace}宮</p>
-                        <p><span class="highlight">★ 身宮</span>：${data.bodyPalace}宮</p>
-                        <p><span class="highlight">★ 紫微星</span>：${data.ziweiPosition}宮</p>
+                        <p><span class="highlight">★ 命宮</span>：${data.mingPalace}（${data.lifeMaster}）</p>
+                        <p><span class="highlight">★ 身宮</span>：${data.bodyPalace}（${data.bodyMaster}）</p>
+                        <p><span class="highlight">★ 五行局</span>：${data.bureau}</p>
                     </div>
                     <h4 class="subheading">十二宮配置</h4>
-                    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:4px; font-size:0.75rem;">
+                    <div class="ziwei-list-container">
                         ${palacesHtml}
                     </div>
+                </div>
+            </div>`;
+    }
+
+    static renderZiWeiGrid(data) {
+        let gridHtml = '<div class="ziwei-grid">';
+
+        for (let r = 0; r < 4; r++) {
+            for (let c = 0; c < 4; c++) {
+                const cell = data.gridLayout[r][c];
+
+                // 中央の空白地帯（情報表示エリア）
+                if ((r === 1 || r === 2) && (c === 1 || c === 2)) {
+                    if (r === 1 && c === 1) {
+                        gridHtml += `
+                        <div class="ziwei-center-info" style="grid-column: 2 / 4; grid-row: 2 / 4;">
+                            <div class="ziwei-center-title">紫微斗数命盤</div>
+                            <div class="ziwei-center-content">
+                                <div><span class="label">局数:</span> ${data.bureau}</div>
+                                <div><span class="label">陰陽男女:</span> ${data.gender === 'male' ? '男性' : '女性'}</div>
+                                <div><span class="label">旧暦:</span> ${data.lunarDate}</div>
+                                <div><span class="label">命宮:</span> ${data.mingPalace}</div>
+                                <div><span class="label">身宮:</span> ${data.bodyPalace}</div>
+                            </div>
+                        </div>`;
+                    }
+                    continue;
+                }
+
+                if (!cell) {
+                    gridHtml += '<div class="ziwei-grid-cell empty"></div>';
+                    continue;
+                }
+
+                const isLife = cell.is_life_palace ? 'is-life-palace' : '';
+                const isBody = cell.is_body_palace ? 'is-body-palace' : '';
+
+                // 星のHTML生成
+                // 主要な星のみ表示（API版のgridLayoutには名前のリストしか入っていないため、詳細はpalacesから引く必要があるが、
+                // ここでは簡易表示としてgridLayoutのデータを使う、もしくはpalacesから検索する）
+
+                // normalizeZiWeiでgridLayoutに星の詳細を含めるように調整済みと仮定
+                // もし文字列配列なら簡易表示
+                const starsHtml = (cell.stars || cell.major_stars || []).map(s => {
+                    const name = typeof s === 'string' ? s : s.name;
+                    const type = typeof s === 'string' ? 'major' : (s.type || 'major'); // デフォルトmajor
+                    const brightness = (typeof s !== 'string' && s.brightness) ? `(${s.brightness})` : '';
+
+                    let className = 'ziwei-star-major';
+                    if (type === 'minor') className = 'ziwei-star-minor';
+                    if (type === 'bad') className = 'ziwei-star-bad';
+
+                    return `<div class="${className}">${name}<span class="ziwei-brightness">${brightness}</span></div>`;
+                }).join('');
+
+                gridHtml += `
+                <div class="ziwei-grid-cell ${isLife} ${isBody}">
+                    <div class="ziwei-cell-header">
+                        <span class="ziwei-cell-name">${cell.name}</span>
+                        <span class="ziwei-cell-branch">${cell.branch}</span>
+                    </div>
+                    <div class="ziwei-cell-stars">
+                        ${starsHtml}
+                    </div>
+                    ${cell.decade_luck ? `<div class="ziwei-cell-footer">${cell.decade_luck}</div>` : ''}
+                </div>`;
+            }
+        }
+        gridHtml += '</div>';
+
+        return `
+            <div class="result-card">
+                <div class="result-card-header">
+                    <h3 class="result-card-title">紫微斗数</h3>
+                    <span class="source-tag">${data.source === 'API' ? '✨ 高性能API版' : '⚡ 予備JS版'}</span>
+                </div>
+                <div class="result-card-body">
+                    ${gridHtml}
                 </div>
             </div>`;
     }
@@ -799,7 +943,10 @@ class DivinationRenderer {
                     <h4 class="subheading">惑星位置</h4>
                     <table class="result-table">
                         <tr><th>惑星</th><th>星座</th><th>度数</th></tr>
-                        ${data.planets.map(p => `<tr><td>${p.name}${p.retrograde ? ' <span style="color:red">℞</span>' : ''}</td><td>${p.sign}</td><td>${typeof p.degree === 'number' ? p.degree.toFixed(2) : p.degree}°</td></tr>`).join('')}
+                        ${data.planets.map(p => {
+            const deg = (typeof p.degree === 'number') ? p.degree.toFixed(2) + '°' : (p.degree || '-');
+            return `<tr><td>${p.name}${p.retrograde ? ' <span style="color:red">℞</span>' : ''}</td><td>${p.sign}</td><td>${deg}</td></tr>`;
+        }).join('')}
                     </table>
                     <h4 class="subheading">アスペクト</h4>
                     <table class="result-table">

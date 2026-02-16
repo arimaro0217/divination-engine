@@ -96,6 +96,7 @@ class ZiWeiEngine:
     def calculate(
         self, 
         birth_dt: datetime,
+        gender: str = 'male',
         leap_month_mode: LeapMonthMode = LeapMonthMode.MODE_A,
         target_year: Optional[int] = None
     ) -> Dict:
@@ -104,6 +105,7 @@ class ZiWeiEngine:
         
         Args:
             birth_dt: 生年月日時（タイムゾーン付き）
+            gender: 性別 ('male' or 'female')
             leap_month_mode: 閏月の処理モード（デフォルト: 中州派）
             target_year: 流年四化を計算する年（オプション）
             
@@ -167,11 +169,17 @@ class ZiWeiEngine:
                 target_stem = zw.STEMS[target_stem_index]
                 yearly_trans = zw.FOUR_TRANSFORMATIONS.get(target_stem, {})
             
-            # 結果を構築
-            result = {
+            # 性別の詳細表記（例：陽男、陰女）
+            is_yang_year = (lunar_date['year_stem_index'] % 2 == 0)
+            gender_prefix = "陽" if is_yang_year else "陰"
+            gender_suffix = "男" if gender == 'male' else "女"
+            detailed_gender = f"{gender_prefix}{gender_suffix}"
+
+            return {
                 "type": "紫微斗数",
                 "success": True,
                 "lunar_date": f"{lunar_date['year']}年{adjusted_month}月{lunar_date['day']}日",
+                "gender": detailed_gender,  # Added
                 "is_leap_month": lunar_date['is_leap_month'],
                 "leap_month_mode": leap_month_mode.value,
                 "ming_palace": {

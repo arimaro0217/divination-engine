@@ -615,7 +615,12 @@ class JyotishAPI:
         result["current_dasha"] = current_dasha
         
         # ナクシャトラ詳細
-        result["moon_nakshatra"] = self.core.get_nakshatra_info(moon.longitude)
+        nakshatra_info = self.core.get_nakshatra_info(moon.longitude)
+        result["moon_nakshatra"] = nakshatra_info
+        
+        # トップレベルに追加（スキーマ対応）
+        result["nakshatra"] = nakshatra_info["name_ja"]
+        result["nakshatra_lord"] = nakshatra_info["lord_ja"]
         
         return result
     

@@ -363,72 +363,56 @@ function generateKyuseiMarkdown(data) {
 function generateZiWeiMarkdown(data) {
     let md = `## 紫微斗数\n\n`;
 
-    md += `- **旧暦生年月日**: ${val(data, ['lunarDate', 'lunar_date'])}\n`;
+    // 基本情報（DivinationAdapterで正規化されたキーを使用）
+    const bureau = val(data, ['bureau', 'bureau_name']) || '不明';
+    const mingPalace = val(data, ['mingPalace', 'life_palace', 'ming_palace', 'lifePalace']) || '?';
+    const bodyPalace = val(data, ['bodyPalace', 'body_palace', 'bodyPalace']) || '?';
+    const ziweiPos = val(data, ['ziweiPosition', 'ziwei_position']) || '?';
+    const lunarDate = val(data, ['lunarDate', 'lunar_date']) || '?';
+    const hourBranch = val(data, ['hourBranch', 'hour_branch']) || '?';
 
-    // API: ming_palace, JS: mingPalace or lifePalace
-    const lifePalace = val(data, ['lifePalace', 'mingPalace', 'ming_palace', 'life_palace']);
-    if (lifePalace && lifePalace !== '?') {
-        const suffix = lifePalace.endsWith('宮') ? '' : '宮';
-        md += `- **命宮**: ${lifePalace}${suffix}\n`;
+    md += `- **五行局**: ${bureau}\n`;
+    md += `- **命宮**: ${mingPalace}\n`;
+    md += `- **身宮**: ${bodyPalace}\n`;
+    md += `- **紫微星**: ${ziweiPos}宮\n`;
+    md += `- **旧暦**: ${lunarDate}\n`;
+    md += `- **時辰**: ${hourBranch}\n\n`;
+
+    md += `### 十二宮\n\n`;
+
+    // 宮データの処理
+    const palaces = val(data, ['palaces'], []);
+
+    if (palaces.length > 0) {
+        // マークダウンのリスト形式で出力
+        palaces.forEach(p => {
+            const name = p.name || p.palace_type || '?';
+            const branch = p.branch || '';
+
+            let stars = [];
+            if (p.stars) {
+                stars = p.stars;
+            } else if (p.major_stars) {
+                // API生データの場合のフォールバック
+                stars = p.major_stars.map(s => typeof s === 'string' ? { name: s, type: 'major' } : { ...s, type: 'major' });
+                if (p.minor_stars) stars = stars.concat(p.minor_stars.map(s => typeof s === 'string' ? { name: s, type: 'minor' } : { ...s, type: 'minor' }));
+                if (p.bad_stars) stars = stars.concat(p.bad_stars.map(s => typeof s === 'string' ? { name: s, type: 'bad' } : { ...s, type: 'bad' }));
+            }
+
+            // 星の文字列生成
+            const starStrs = stars.map(s => {
+                const sName = s.name || s;
+                const brightness = s.brightness ? `(${s.brightness})` : '';
+                return `${sName}${brightness}`;
+            }).join(', ');
+
+            md += `- **${name}** (${branch}): ${starStrs}\n`;
+        });
+    } else {
+        md += `データなし\n`;
     }
 
-    // 時辰
-    const hourBranch = val(data, ['hourBranch', 'hour_branch'], null);
-    if (hourBranch && hourBranch !== '?') {
-        md += `- **時辰**: ${hourBranch}の刻\n`;
-    }
-
-    // 五行局
-    const bureau = val(data, ['bureau']); // API版にはないかも
-    if (bureau && bureau !== '?') {
-        md += `- **五行局**: ${bureau}\n`;
-    }
-
-    // 身宮
-    const bodyPalace = val(data, ['bodyPalace', 'body_palace']);
-    if (bodyPalace && bodyPalace !== '?') {
-        const suffix = bodyPalace.endsWith('宮') ? '' : '宮';
-        md += `- **身宮**: ${bodyPalace}${suffix}\n`;
-    }
-
-    // 紫微星（JS版のみかも。API版はmain_starsに含まれる）
-    const ziweiPosition = val(data, ['ziweiPosition', 'ziwei_position']);
-    if (ziweiPosition && ziweiPosition !== '?') {
-        const suffix = ziweiPosition.endsWith('宮') ? '' : '宮';
-        md += `- **紫微星**: ${ziweiPosition}${suffix}\n`;
-    }
     md += `\n`;
-
-    // 十二宮配置
-    // JS: palaces (list of obj), API: main_stars (dict of name->stars)
-    const palaces = val(data, ['palaces']); // JS版
-    const mainStars = val(data, ['mainStars', 'main_stars']); // API版
-
-    if (palaces && Array.isArray(palaces) && palaces.length > 0) {
-        // JS版構造（正規化後: starsはオブジェクト配列）
-        md += `### 十二宮配置\n\n`;
-        md += `| 宮名 | 地支 | 主星 |\n`;
-        md += `|---|---|---|\n`;
-        for (const p of palaces.slice(0, 12)) {
-            const name = val(p, 'name');
-            const branch = val(p, 'branch');
-            const stars = Array.isArray(p.stars) ? p.stars.map(s => {
-                const n = s.name || s;
-                const b = s.brightness ? `(${s.brightness})` : '';
-                let prefix = '';
-                if (s.type === 'major') prefix = '★'; // 主星
-                else if (s.type === 'bad') prefix = '▼'; // 凶星
-                return `${prefix}${n}${b}`;
-            }).join(' ') : '-';
-            md += `| ${name} | ${branch} | ${stars} |\n`;
-        }
-        md += `\n`;
-    } else if (mainStars && Object.keys(mainStars).length > 0) {
-        // ... (API版構造へのフォールバックは正規化により不要になったはずだが念のため残す)
-        md += `### 十二宮配置（主星）\n\n`;
-        // ...
-    }
-
     return md;
 }
 
